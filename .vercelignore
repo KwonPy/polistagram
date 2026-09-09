@@ -1,0 +1,13 @@
+# 비밀정보 — 절대 배포에 포함하지 않는다
+credentials/
+.env
+.env.example
+
+# 아직 배포 대상이 아닌 백엔드 코드 (FastAPI는 4주 계획상 미착수)
+app/
+scripts/
+requirements.txt
+
+# 배포와 무관한 문서/설정
+docs/
+.claude/

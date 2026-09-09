@@ -1,0 +1,15 @@
+# 비밀정보 — 절대 커밋하지 않는다
+credentials/
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+.vercel

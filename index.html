@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polistagram</title>
+
+  <!-- Pico.css: 클래스 없이도 기본 태그(form, input, button...)를 깔끔하게 스타일링해주는 CDN CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+
+  <style>
+    /* 관심분야 체크박스를 2열 그리드로. 화면이 좁아지면(모바일) 1열로 바뀐다. */
+    .interest-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.25rem 1rem;
+    }
+    @media (max-width: 480px) {
+      .interest-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    header.app-header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    header.app-header h1 {
+      margin-bottom: 0.25rem;
+    }
+    fieldset {
+      border: none;
+      padding: 0;
+      margin: 0 0 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Pico.css는 <main class="container">로 감싼 내용을 화면 크기에 맞춰
+       가운데 정렬 + 여백을 자동으로 잡아준다. 별도 반응형 CSS를 안 짜도 된다. -->
+  <main class="container">
+    <header class="app-header">
+      <h1>Polistagram</h1>
+      <p>쏟아지는 금융정책, 나에게 필요한 것만 쉽게.</p>
+    </header>
+
+    <form id="profile-form">
+      <label for="region">거주지역</label>
+      <select id="region" name="region" required>
+        <option value="" disabled selected>선택해주세요</option>
+        <option>서울</option>
+        <option>부산</option>
+        <option>대구</option>
+        <option>인천</option>
+        <option>광주</option>
+        <option>대전</option>
+        <option>울산</option>
+        <option>세종</option>
+        <option>경기</option>
+        <option>강원</option>
+        <option>충북</option>
+        <option>충남</option>
+        <option>전북</option>
+        <option>전남</option>
+        <option>경북</option>
+        <option>경남</option>
+        <option>제주</option>
+      </select>
+
+      <label for="gender">성별</label>
+      <select id="gender" name="gender" required>
+        <option value="" disabled selected>선택해주세요</option>
+        <option>남성</option>
+        <option>여성</option>
+      </select>
+
+      <label for="birth_date">생년월일</label>
+      <input type="date" id="birth_date" name="birth_date" required />
+
+      <label for="occupation_type">개인특성</label>
+      <select id="occupation_type" name="occupation_type">
+        <option value="">해당 없음</option>
+        <option>근로자</option>
+        <option>구직자</option>
+        <option>소상공인·자영업자</option>
+        <option>대학생</option>
+        <option>프리랜서·특수고용직</option>
+      </select>
+
+      <fieldset>
+        <legend>관심분야 (여러 개 선택 가능)</legend>
+        <div class="interest-grid">
+          <label><input type="checkbox" name="interests" value="대출" /> 대출</label>
+          <label><input type="checkbox" name="interests" value="주거·전세" /> 주거·전세</label>
+          <label><input type="checkbox" name="interests" value="저축·자산형성" /> 저축·자산형성</label>
+          <label><input type="checkbox" name="interests" value="투자·주식" /> 투자·주식</label>
+          <label><input type="checkbox" name="interests" value="보험" /> 보험</label>
+          <label><input type="checkbox" name="interests" value="창업·사업자금" /> 창업·사업자금</label>
+          <label><input type="checkbox" name="interests" value="취업·채용" /> 취업·채용</label>
+        </div>
+      </fieldset>
+
+      <button type="submit">제출</button>
+      <p id="submit-message" role="status" hidden></p>
+    </form>
+  </main>
+
+  <!-- PapaParse: CSV 텍스트/URL을 자바스크립트 배열로 바꿔주는 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script>
+    // 구글시트를 CSV로 그대로 내려받을 수 있는 주소.
+    // 시트가 "링크가 있는 모든 사용자에게 보기" 권한으로 공유돼 있어야 브라우저에서 바로 읽힌다.
+    const SHEET_ID = "1McD3ZoD-QEK8BDz2SGGnDVpkM8xA-gFRnmzovZag6_4";
+    const GID = {
+      articles_raw: "1793472940",
+      articles_triage: "315574460",
+    };
+
+    function csvUrl(gid) {
+      return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+    }
+
+    // Papa.parse에 URL을 주면(download: true) 직접 다운로드해서 파싱해준다.
+    // 콜백 기반 API를 Promise로 감싸서 async/await로 쓸 수 있게 한다.
+    function fetchCsv(gid) {
+      return new Promise((resolve, reject) => {
+        Papa.parse(csvUrl(gid), {
+          download: true,
+          header: true, // 첫 줄을 헤더로 보고, 각 행을 {열이름: 값} 객체로 만든다
+          skipEmptyLines: true,
+          complete: (results) => resolve(results.data),
+          error: reject,
+        });
+      });
+    }
+
+    // 정책 데이터를 미리 불러와만 둔다. 이번 화면(프로필 입력)에는 표시하지 않고,
+    // 다음 화면(맞춤 정책 목록)에서 window.__articles를 그대로 이어받아 쓸 예정이다.
+    async function loadArticles() {
+      try {
+        const [raw, triage] = await Promise.all([
+          fetchCsv(GID.articles_raw),
+          fetchCsv(GID.articles_triage),
+        ]);
+        // article_id를 기준으로 raw(원문)와 triage(분류)를 한 객체로 합친다.
+        const triageById = Object.fromEntries(triage.map((row) => [row.article_id, row]));
+        const articles = raw.map((row) => ({ ...row, ...triageById[row.article_id] }));
+        window.__articles = articles;
+        console.log(`[polistagram] 정책 ${articles.length}건 불러옴`, articles);
+        return articles;
+      } catch (err) {
+        console.error("[polistagram] 정책 데이터를 불러오지 못했습니다.", err);
+        return [];
+      }
+    }
+
+    loadArticles();
+
+    const STORAGE_KEY = "polistagram_profile";
+    const form = document.getElementById("profile-form");
+    const message = document.getElementById("submit-message");
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const checkedInterests = form.querySelectorAll('input[name="interests"]:checked');
+      const profile = {
+        region: form.region.value,
+        gender: form.gender.value,
+        birth_date: form.birth_date.value,
+        occupation_type: form.occupation_type.value || null,
+        interests: Array.from(checkedInterests).map((el) => el.value),
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+
+      message.hidden = false;
+      message.textContent = "프로필이 저장됐어요. 곧 맞춤 정책을 보여드릴게요.";
+    });
+
+    // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워준다.
+    (function restoreProfile() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
+      const profile = JSON.parse(saved);
+      if (profile.region) form.region.value = profile.region;
+      if (profile.gender) form.gender.value = profile.gender;
+      if (profile.birth_date) form.birth_date.value = profile.birth_date;
+      if (profile.occupation_type) form.occupation_type.value = profile.occupation_type;
+      (profile.interests || []).forEach((value) => {
+        const el = form.querySelector(`input[name="interests"][value="${value}"]`);
+        if (el) el.checked = true;
+      });
+    })();
+  </script>
+</body>
+</html>
