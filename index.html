@@ -257,8 +257,8 @@
       message.innerHTML = '✓ 프로필이 저장됐어요. <a href="match.html">맞춤 정책 보러가기</a>';
     });
 
-    // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워주고, 폼도 처음부터 펼쳐둔다
-    // (이미 한 번 입력한 사용자에게 "시작하기"를 또 누르게 하지 않기 위해).
+    // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워둔다. 단, 첫 화면은 항상
+    // 히어로만 보여야 하므로 폼을 펼치지는 않는다 — "시작하기"를 눌러야 펼쳐진다.
     (function restoreProfile() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) return;
@@ -272,8 +272,6 @@
         const el = form.querySelector(`input[name="interests"][value="${value}"]`);
         if (el) el.checked = true;
       });
-
-      profileSection.classList.add("open");
     })();
   </script>
 </body>
