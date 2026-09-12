@@ -9,34 +9,35 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
   <!-- Noto Sans KR: 한글을 포함한 폰트. Pico 기본 폰트는 한글이 없어 브라우저가 알아서 다른 폰트로 대체하는데,
-       그러면 화면마다 한글 모양이 들쭉날쭉해질 수 있어 처음부터 한글 지원 폰트를 지정한다. -->
+       그러면 화면마다 한글 모양이 들쭉날쭉해질 수 있어 처음부터 한글 지원 폰트를 지정한다.
+       Yellowtail: "Polistagram" 로고 글자에만 쓰는 필기체 폰트 (Instagram 옛 로고 느낌). -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Yellowtail&display=swap" />
 
   <style>
     /* Pico.css는 --pico-* 변수로 색을 관리한다. 값을 새로 정의하면 전체 버튼/링크/포커스 색이 한 번에 바뀐다. */
     :root {
       --pico-font-family: "Noto Sans KR", sans-serif;
-      /* 후보 B 팔레트: 로즈(강조) + 블루(보조), 연한 핑크빛 배경.
+      /* 레퍼런스(옛 Instagram 로고)의 파란 톤을 메인 컬러로 사용.
          Pico v2는 버튼 배경(--pico-primary-background 등)이 --pico-primary와
          따로 노는 고정값이라, 관련 변수를 전부 같이 덮어써야 실제로 반영된다. */
-      --pico-primary: #e11d48;
-      --pico-primary-background: #e11d48;
-      --pico-primary-border: #e11d48;
-      --pico-primary-hover: #be123c;
-      --pico-primary-hover-background: #be123c;
-      --pico-primary-hover-border: #be123c;
-      --pico-primary-focus: rgba(225, 29, 72, 0.25);
+      --pico-primary: #3a6ea5;
+      --pico-primary-background: #3a6ea5;
+      --pico-primary-border: #3a6ea5;
+      --pico-primary-hover: #2c5480;
+      --pico-primary-hover-background: #2c5480;
+      --pico-primary-hover-border: #2c5480;
+      --pico-primary-focus: rgba(58, 110, 165, 0.25);
       --pico-primary-inverse: #ffffff;
-      --pico-primary-underline: rgba(225, 29, 72, 0.5);
-      --pico-primary-hover-underline: #be123c;
-      --pico-background-color: #fff1f2;
+      --pico-primary-underline: rgba(58, 110, 165, 0.5);
+      --pico-primary-hover-underline: #2c5480;
+      --pico-background-color: #ffffff;
       --pico-card-background-color: #ffffff;
     }
-    /* 관심분야 체크박스에 체크할 때 등장하는 파랑 — 기존 블루 톤을 보조색으로 남겨둔다. */
+    /* 관심분야 체크박스는 메인 컬러와 통일한다. */
     input[type="checkbox"]:checked {
-      background-color: #2563eb;
-      border-color: #2563eb;
+      background-color: var(--pico-primary);
+      border-color: var(--pico-primary);
     }
 
     /* 관심분야 체크박스를 2열 그리드로. 화면이 좁아지면(모바일) 1열로 바뀐다. */
@@ -54,18 +55,57 @@
     main.container {
       max-width: 560px;
     }
-    header.app-header {
+
+    /* 히어로: 화면 폭 전체를 파란 그라데이션으로 채우는 영역. <main class="container">
+       바깥(body 바로 아래)에 둬서 좌우 여백 없이 꽉 차게 만든다. */
+    .hero {
+      background: linear-gradient(135deg, #4a80b3 0%, #2c4a68 100%);
+      color: #ffffff;
       text-align: center;
+      padding: 4rem 1rem 5rem;
+    }
+    .hero h1 {
+      /* Yellowtail은 필기체라 굵기가 이미 있어서 font-weight를 따로 안 줘도 된다. */
+      font-family: "Yellowtail", cursive;
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      margin-bottom: 0.75rem;
+      line-height: 1.2;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2.5vw, 1.15rem);
+      color: rgba(255, 255, 255, 0.85);
       margin-bottom: 2rem;
     }
-    header.app-header h1 {
-      font-size: 2rem;
+    /* "시작하기" 버튼은 히어로의 파란 배경 위에서 도드라지도록 흰 배경 + 파란 글씨로 반전시킨다. */
+    #start-btn {
+      display: inline-block;
+      width: auto;
+      background: #ffffff;
+      color: #2c4a68;
+      border: none;
       font-weight: 700;
-      margin-bottom: 0.5rem;
+      padding: 0.9rem 2.5rem;
     }
-    header.app-header p {
-      color: var(--pico-muted-color);
-      font-size: 1rem;
+    #start-btn:hover {
+      background: #f1f5f9;
+    }
+
+    /* 프로필 폼 영역을 히어로와 겹치도록 위로 끌어올려서, 카드가 그라데이션 위에 살짝 걸쳐 보이게 한다. */
+    #profile-section {
+      margin-top: -3rem;
+    }
+    /* 처음에는 접혀 있다가(높이 0) "시작하기"를 누르면 .open이 붙으면서 펼쳐진다.
+       display:none 대신 max-height를 쓰는 이유: display는 0/1로만 바뀌어 애니메이션이 안 되지만,
+       max-height는 숫자값이라 transition으로 부드럽게 바뀌는 모습을 만들 수 있다. */
+    #profile-section {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease, opacity 0.4s ease;
+    }
+    #profile-section.open {
+      max-height: 2000px;
+      opacity: 1;
     }
     /* 폼을 감싸는 카드. 배경/테두리는 Pico의 article 기본 스타일을 그대로 쓴다. */
     #profile-card {
@@ -95,14 +135,18 @@
   </style>
 </head>
 <body>
+  <!-- 히어로는 화면 폭 전체를 채워야 해서 .container 바깥(body 바로 아래)에 둔다. -->
+  <header class="hero">
+    <h1>Polistagram</h1>
+    <p>쏟아지는 금융정책, 나에게 필요한 것만 쉽게.</p>
+    <button id="start-btn" type="button">시작하기</button>
+  </header>
+
   <!-- Pico.css는 <main class="container">로 감싼 내용을 화면 크기에 맞춰
        가운데 정렬 + 여백을 자동으로 잡아준다. 별도 반응형 CSS를 안 짜도 된다. -->
   <main class="container">
-    <header class="app-header">
-      <h1>Polistagram</h1>
-      <p>쏟아지는 금융정책, 나에게 필요한 것만 쉽게.</p>
-    </header>
-
+    <!-- 처음엔 접혀 있다가(위 CSS의 max-height: 0) #start-btn을 누르면 JS가 .open 클래스를 붙여서 펼친다. -->
+    <section id="profile-section">
     <!-- <article>은 Pico.css가 기본으로 카드 모양(테두리+배경+여백)을 입혀주는 태그다.
          새 CSS 없이도 폼 전체가 하나의 카드처럼 보인다. -->
     <article id="profile-card">
@@ -166,12 +210,25 @@
       <p id="submit-message" role="status" hidden></p>
     </form>
     </article>
+    </section>
   </main>
 
   <script>
     const STORAGE_KEY = "polistagram_profile";
     const form = document.getElementById("profile-form");
     const message = document.getElementById("submit-message");
+    const startBtn = document.getElementById("start-btn");
+    const profileSection = document.getElementById("profile-section");
+
+    // "시작하기" 버튼을 누르면 접혀 있던 프로필 폼을 펼친다.
+    startBtn.addEventListener("click", () => {
+      profileSection.classList.add("open");
+      // CSS transition이 끝나기까지 기다렸다가(약 500ms) 화면을 폼 쪽으로 스크롤해준다.
+      // block: "start"는 폼의 윗부분이 화면 위쪽에 오도록 스크롤하라는 뜻이다.
+      setTimeout(() => {
+        profileSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    });
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -200,7 +257,8 @@
       message.innerHTML = '✓ 프로필이 저장됐어요. <a href="match.html">맞춤 정책 보러가기</a>';
     });
 
-    // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워준다.
+    // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워주고, 폼도 처음부터 펼쳐둔다
+    // (이미 한 번 입력한 사용자에게 "시작하기"를 또 누르게 하지 않기 위해).
     (function restoreProfile() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) return;
@@ -214,6 +272,8 @@
         const el = form.querySelector(`input[name="interests"][value="${value}"]`);
         if (el) el.checked = true;
       });
+
+      profileSection.classList.add("open");
     })();
   </script>
 </body>
