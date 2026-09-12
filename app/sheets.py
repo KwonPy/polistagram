@@ -1,20 +1,24 @@
 """Google Sheets 연결 및 공통 헬퍼.
 
-.env 파일의 두 값을 읽어서 인증한다.
-- GOOGLE_SHEETS_CREDENTIALS_PATH: 서비스 계정 JSON 키 파일 경로
-- GOOGLE_SHEETS_ID: 사용할 스프레드시트 ID
+인증 정보는 두 가지 방식 중 하나로 읽는다.
+- GOOGLE_SHEETS_CREDENTIALS_PATH: 서비스 계정 JSON 키 "파일 경로" (로컬 개발용)
+- GOOGLE_SHEETS_CREDENTIALS_JSON: 서비스 계정 JSON 키의 "내용 전체" (Vercel 등 배포 환경용.
+  파일을 올릴 수 없는 서버리스 환경이라, 대시보드에 환경변수로 직접 붙여넣는다)
+- GOOGLE_SHEETS_ID: 사용할 스프레드시트 ID (공통)
 
-서비스 계정 키(비밀번호 역할)를 코드에 직접 적지 않고 .env로 분리해서,
+서비스 계정 키(비밀번호 역할)를 코드에 직접 적지 않고 .env/환경변수로 분리해서,
 .env가 git에 올라가지 않는 한 키가 저장소에 노출되지 않는다.
 """
 
+import json
 import os
 
 import gspread
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 
-# .env 파일을 읽어서 os.environ에 등록한다.
+# .env 파일을 읽어서 os.environ에 등록한다. (Vercel에서는 .env 파일이 없어도
+# 대시보드에서 설정한 환경변수가 os.environ에 이미 들어있어 문제없다)
 load_dotenv()
 
 # 이 서비스로 무엇을 할 수 있는지 범위를 지정한다. 시트 읽기/쓰기만 허용.
@@ -23,8 +27,13 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 def get_client() -> gspread.Client:
     """서비스 계정 키로 인증된 gspread 클라이언트를 만든다."""
-    creds_path = os.environ["GOOGLE_SHEETS_CREDENTIALS_PATH"]
-    creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
+    creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+    if creds_json:
+        # 환경변수에 파일 내용이 문자열로 들어있으므로, json.loads로 딕셔너리로 바꾼 뒤 인증한다.
+        creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
+    else:
+        creds_path = os.environ["GOOGLE_SHEETS_CREDENTIALS_PATH"]
+        creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
     return gspread.authorize(creds)
 
 

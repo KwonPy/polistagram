@@ -3,10 +3,9 @@ credentials/
 .env
 .env.example
 
-# 아직 배포 대상이 아닌 백엔드 코드 (FastAPI는 4주 계획상 미착수)
-app/
+# app/, requirements.txt는 api/index.py가 배포 시점에 가져다 쓰므로 제외하지 않는다.
+# scripts/는 로컬에서 구글시트에 목업 데이터를 채울 때만 쓰는 1회성 스크립트라 배포에서 뺀다.
 scripts/
-requirements.txt
 
 # 배포와 무관한 문서/설정
 docs/

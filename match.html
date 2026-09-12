@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polistagram - 맞춤 정책</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" />
+
+  <style>
+    :root {
+      --pico-font-family: "Noto Sans KR", sans-serif;
+      --pico-primary: #3182f6;
+      --pico-primary-hover: #1b64da;
+      --pico-primary-focus: rgba(49, 130, 246, 0.25);
+      --pico-primary-inverse: #ffffff;
+    }
+    main.container {
+      max-width: 720px;
+    }
+    header.app-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    header.app-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    header.app-header p {
+      color: var(--pico-muted-color);
+    }
+    /* 백엔드가 돌려준 JSON을 그대로 보여줄 상자. 아직 디자인 단계가 아니라서
+       줄바꿈만 살리는 최소한의 스타일만 준다. */
+    #result {
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="app-header">
+      <h1>Polistagram</h1>
+      <p>내 프로필과 매칭된 정책 (개발용 원본 JSON)</p>
+    </header>
+
+    <article>
+      <p id="status" role="status">불러오는 중...</p>
+      <pre id="result" hidden></pre>
+    </article>
+  </main>
+
+  <script>
+    // 상대 경로로 두면, 이 페이지가 열린 주소를 그대로 기준으로 삼는다.
+    // 로컬(vercel dev)이든 배포된 주소든 따로 안 바꿔도 된다.
+    const API_URL = "/api/match";
+    const STORAGE_KEY = "polistagram_profile";
+
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+
+    async function loadMatches() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        statusEl.textContent = "저장된 프로필이 없어요. 먼저 프로필을 입력해주세요.";
+        statusEl.innerHTML += ' <a href="index.html">프로필 입력하러 가기</a>';
+        return;
+      }
+
+      const profile = JSON.parse(saved);
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profile),
+        });
+
+        if (!response.ok) {
+          throw new Error(`서버 응답 오류: ${response.status}`);
+        }
+
+        const matches = await response.json();
+
+        statusEl.textContent = `매칭된 정책 ${matches.length}건`;
+        resultEl.textContent = JSON.stringify(matches, null, 2);
+        resultEl.hidden = false;
+      } catch (err) {
+        console.error("[polistagram] 매칭 결과를 불러오지 못했습니다.", err);
+        statusEl.textContent =
+          "매칭 결과를 불러오지 못했어요. 백엔드 서버(uvicorn)가 실행 중인지 확인해주세요.";
+      }
+    }
+
+    loadMatches();
+  </script>
+</body>
+</html>

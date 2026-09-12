@@ -8,7 +8,21 @@
   <!-- Pico.css: 클래스 없이도 기본 태그(form, input, button...)를 깔끔하게 스타일링해주는 CDN CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
+  <!-- Noto Sans KR: 한글을 포함한 폰트. Pico 기본 폰트는 한글이 없어 브라우저가 알아서 다른 폰트로 대체하는데,
+       그러면 화면마다 한글 모양이 들쭉날쭉해질 수 있어 처음부터 한글 지원 폰트를 지정한다. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" />
+
   <style>
+    /* Pico.css는 --pico-* 변수로 색을 관리한다. 값을 새로 정의하면 전체 버튼/링크/포커스 색이 한 번에 바뀐다. */
+    :root {
+      --pico-font-family: "Noto Sans KR", sans-serif;
+      --pico-primary: #3182f6;
+      --pico-primary-hover: #1b64da;
+      --pico-primary-focus: rgba(49, 130, 246, 0.25);
+      --pico-primary-inverse: #ffffff;
+    }
+
     /* 관심분야 체크박스를 2열 그리드로. 화면이 좁아지면(모바일) 1열로 바뀐다. */
     .interest-grid {
       display: grid;
@@ -20,17 +34,47 @@
         grid-template-columns: 1fr;
       }
     }
+    /* 화면 폭이 넓어도 폼이 너무 옆으로 퍼지지 않도록 최대 폭을 제한한다 (가독성). */
+    main.container {
+      max-width: 560px;
+    }
     header.app-header {
       text-align: center;
-      margin-bottom: 1rem;
+      margin-bottom: 2rem;
     }
     header.app-header h1 {
-      margin-bottom: 0.25rem;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    header.app-header p {
+      color: var(--pico-muted-color);
+      font-size: 1rem;
+    }
+    /* 폼을 감싸는 카드. 배경/테두리는 Pico의 article 기본 스타일을 그대로 쓴다. */
+    #profile-card {
+      margin-bottom: 0;
+    }
+    /* 입력 항목 사이 간격을 넓혀서 각 질문이 하나씩 구분되어 보이게 한다. */
+    #profile-form > label {
+      display: block;
+      font-weight: 500;
+      margin-top: 1.5rem;
+    }
+    #profile-form > label:first-child {
+      margin-top: 0;
     }
     fieldset {
       border: none;
       padding: 0;
-      margin: 0 0 1rem 0;
+      margin: 1.5rem 0 0 0;
+    }
+    fieldset legend {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    button[type="submit"] {
+      margin-top: 2rem;
     }
   </style>
 </head>
@@ -43,6 +87,9 @@
       <p>쏟아지는 금융정책, 나에게 필요한 것만 쉽게.</p>
     </header>
 
+    <!-- <article>은 Pico.css가 기본으로 카드 모양(테두리+배경+여백)을 입혀주는 태그다.
+         새 CSS 없이도 폼 전체가 하나의 카드처럼 보인다. -->
+    <article id="profile-card">
     <form id="profile-form">
       <label for="region">거주지역</label>
       <select id="region" name="region" required>
@@ -76,7 +123,7 @@
       <label for="birth_date">생년월일</label>
       <input type="date" id="birth_date" name="birth_date" required />
 
-      <label for="occupation_type">개인특성</label>
+      <label for="occupation_type">개인특성 <small>(선택)</small></label>
       <select id="occupation_type" name="occupation_type">
         <option value="">해당 없음</option>
         <option>근로자</option>
@@ -87,7 +134,7 @@
       </select>
 
       <fieldset>
-        <legend>관심분야 (여러 개 선택 가능)</legend>
+        <legend>관심분야 * <small>1개 이상 선택해주세요</small></legend>
         <div class="interest-grid">
           <label><input type="checkbox" name="interests" value="대출" /> 대출</label>
           <label><input type="checkbox" name="interests" value="주거·전세" /> 주거·전세</label>
@@ -102,59 +149,10 @@
       <button type="submit">제출</button>
       <p id="submit-message" role="status" hidden></p>
     </form>
+    </article>
   </main>
 
-  <!-- PapaParse: CSV 텍스트/URL을 자바스크립트 배열로 바꿔주는 라이브러리 -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
-    // 구글시트를 CSV로 그대로 내려받을 수 있는 주소.
-    // 시트가 "링크가 있는 모든 사용자에게 보기" 권한으로 공유돼 있어야 브라우저에서 바로 읽힌다.
-    const SHEET_ID = "1McD3ZoD-QEK8BDz2SGGnDVpkM8xA-gFRnmzovZag6_4";
-    const GID = {
-      articles_raw: "1793472940",
-      articles_triage: "315574460",
-    };
-
-    function csvUrl(gid) {
-      return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-    }
-
-    // Papa.parse에 URL을 주면(download: true) 직접 다운로드해서 파싱해준다.
-    // 콜백 기반 API를 Promise로 감싸서 async/await로 쓸 수 있게 한다.
-    function fetchCsv(gid) {
-      return new Promise((resolve, reject) => {
-        Papa.parse(csvUrl(gid), {
-          download: true,
-          header: true, // 첫 줄을 헤더로 보고, 각 행을 {열이름: 값} 객체로 만든다
-          skipEmptyLines: true,
-          complete: (results) => resolve(results.data),
-          error: reject,
-        });
-      });
-    }
-
-    // 정책 데이터를 미리 불러와만 둔다. 이번 화면(프로필 입력)에는 표시하지 않고,
-    // 다음 화면(맞춤 정책 목록)에서 window.__articles를 그대로 이어받아 쓸 예정이다.
-    async function loadArticles() {
-      try {
-        const [raw, triage] = await Promise.all([
-          fetchCsv(GID.articles_raw),
-          fetchCsv(GID.articles_triage),
-        ]);
-        // article_id를 기준으로 raw(원문)와 triage(분류)를 한 객체로 합친다.
-        const triageById = Object.fromEntries(triage.map((row) => [row.article_id, row]));
-        const articles = raw.map((row) => ({ ...row, ...triageById[row.article_id] }));
-        window.__articles = articles;
-        console.log(`[polistagram] 정책 ${articles.length}건 불러옴`, articles);
-        return articles;
-      } catch (err) {
-        console.error("[polistagram] 정책 데이터를 불러오지 못했습니다.", err);
-        return [];
-      }
-    }
-
-    loadArticles();
-
     const STORAGE_KEY = "polistagram_profile";
     const form = document.getElementById("profile-form");
     const message = document.getElementById("submit-message");
@@ -163,6 +161,14 @@
       event.preventDefault();
 
       const checkedInterests = form.querySelectorAll('input[name="interests"]:checked');
+
+      if (checkedInterests.length === 0) {
+        message.hidden = false;
+        message.style.color = "crimson";
+        message.textContent = "관심분야를 1개 이상 선택해주세요.";
+        return;
+      }
+
       const profile = {
         region: form.region.value,
         gender: form.gender.value,
@@ -174,7 +180,8 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
 
       message.hidden = false;
-      message.textContent = "프로필이 저장됐어요. 곧 맞춤 정책을 보여드릴게요.";
+      message.style.color = "green";
+      message.innerHTML = '✓ 프로필이 저장됐어요. <a href="match.html">맞춤 정책 보러가기</a>';
     });
 
     // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워준다.
