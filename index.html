@@ -17,10 +17,26 @@
     /* Pico.css는 --pico-* 변수로 색을 관리한다. 값을 새로 정의하면 전체 버튼/링크/포커스 색이 한 번에 바뀐다. */
     :root {
       --pico-font-family: "Noto Sans KR", sans-serif;
-      --pico-primary: #3182f6;
-      --pico-primary-hover: #1b64da;
-      --pico-primary-focus: rgba(49, 130, 246, 0.25);
+      /* 후보 B 팔레트: 로즈(강조) + 블루(보조), 연한 핑크빛 배경.
+         Pico v2는 버튼 배경(--pico-primary-background 등)이 --pico-primary와
+         따로 노는 고정값이라, 관련 변수를 전부 같이 덮어써야 실제로 반영된다. */
+      --pico-primary: #e11d48;
+      --pico-primary-background: #e11d48;
+      --pico-primary-border: #e11d48;
+      --pico-primary-hover: #be123c;
+      --pico-primary-hover-background: #be123c;
+      --pico-primary-hover-border: #be123c;
+      --pico-primary-focus: rgba(225, 29, 72, 0.25);
       --pico-primary-inverse: #ffffff;
+      --pico-primary-underline: rgba(225, 29, 72, 0.5);
+      --pico-primary-hover-underline: #be123c;
+      --pico-background-color: #fff1f2;
+      --pico-card-background-color: #ffffff;
+    }
+    /* 관심분야 체크박스에 체크할 때 등장하는 파랑 — 기존 블루 톤을 보조색으로 남겨둔다. */
+    input[type="checkbox"]:checked {
+      background-color: #2563eb;
+      border-color: #2563eb;
     }
 
     /* 관심분야 체크박스를 2열 그리드로. 화면이 좁아지면(모바일) 1열로 바뀐다. */

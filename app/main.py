@@ -9,6 +9,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.matching import match_articles
@@ -38,3 +39,17 @@ class Profile(BaseModel):
 def match(profile: Profile):
     """프로필을 받아 매칭된 정책 목록을 점수 높은 순으로 반환한다."""
     return match_articles(profile.model_dump())
+
+
+# 아래 두 라우트는 로컬에서 `uvicorn app.main:app`만으로 프론트+API를 한 주소에서
+# 테스트하기 위한 것이다. Vercel 배포본에서는 vercel.json이 /api/* 이외의 요청을
+# 이 함수까지 오기 전에 정적 파일로 직접 응답하므로, 이 라우트는 실행되지 않는다.
+@app.get("/")
+@app.get("/index.html")
+def index_page():
+    return FileResponse("index.html")
+
+
+@app.get("/match.html")
+def match_page():
+    return FileResponse("match.html")

@@ -5,54 +5,140 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Polistagram - 맞춤 정책</title>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" />
 
   <style>
-    :root {
-      --pico-font-family: "Noto Sans KR", sans-serif;
-      --pico-primary: #3182f6;
-      --pico-primary-hover: #1b64da;
-      --pico-primary-focus: rgba(49, 130, 246, 0.25);
-      --pico-primary-inverse: #ffffff;
+    /* Pico는 쓰지 않는다: 이 화면은 카드 레이아웃이 핵심이라 태그 기본 스타일보다
+       직접 만든 카드 컴포넌트가 더 잘 맞는다. (참고: dribbble.com/shots/27060478) */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans KR", sans-serif;
+      background: #fff1f2; /* index.html과 같은 후보 B 팔레트 배경 */
+      color: #1a1a1a;
     }
-    main.container {
-      max-width: 720px;
-    }
-    header.app-header {
-      text-align: center;
-      margin-bottom: 2rem;
+    main {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
     }
     header.app-header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 900;
+      margin: 0 0 0.25rem;
     }
     header.app-header p {
-      color: var(--pico-muted-color);
+      margin: 0 0 1.25rem;
+      color: #6b6b6b;
+      font-size: 0.9rem;
     }
-    /* 백엔드가 돌려준 JSON을 그대로 보여줄 상자. 아직 디자인 단계가 아니라서
-       줄바꿈만 살리는 최소한의 스타일만 준다. */
-    #result {
-      white-space: pre-wrap;
-      word-break: break-all;
-      font-family: monospace;
+
+    /* 상단 필터 탭. 선택된 탭만 노란 배경, 나머지는 흰 배경 알약 모양. */
+    #tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .tab {
+      flex: none;
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      font-family: inherit;
+      font-weight: 700;
       font-size: 0.85rem;
+      background: #ffffff;
+      color: #1a1a1a;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #f5e400; /* 레퍼런스의 포인트 옐로 */
+    }
+
+    #feed {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* 카드 공통 골격 */
+    .card {
+      border-radius: 24px;
+      padding: 1.25rem;
+      text-decoration: none;
+      display: block;
+    }
+    /* personal_relevance = direct -> 다크 카드 (지금 바로 신청 가능한 것을 강조) */
+    .card.direct {
+      background: #16171b;
+      color: #ffffff;
+    }
+    /* personal_relevance = indirect -> 라이트 카드 (참고용, 톤을 낮춤) */
+    .card.indirect {
+      background: #f3f0f1;
+      color: #1a1a1a;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+      background: #f5e400;
+      color: #1a1a1a;
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.4;
+      margin: 0 0 0.5rem;
+    }
+    .card.indirect .card-title {
+      color: #e11d48; /* index.html과 같은 로즈 포인트 컬러 */
+    }
+    .card-summary {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0 0 0.9rem;
+      opacity: 0.85;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      opacity: 0.7;
+    }
+
+    #status {
+      color: #6b6b6b;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
-  <main class="container">
+  <main>
     <header class="app-header">
-      <h1>Polistagram</h1>
-      <p>내 프로필과 매칭된 정책 (개발용 원본 JSON)</p>
+      <h1>My feed</h1>
+      <p>내 프로필과 매칭된 금융정책</p>
     </header>
 
-    <article>
-      <p id="status" role="status">불러오는 중...</p>
-      <pre id="result" hidden></pre>
-    </article>
+    <div id="tabs"></div>
+
+    <p id="status" role="status">불러오는 중...</p>
+    <div id="feed"></div>
   </main>
 
   <script>
@@ -62,7 +148,59 @@
     const STORAGE_KEY = "polistagram_profile";
 
     const statusEl = document.getElementById("status");
-    const resultEl = document.getElementById("result");
+    const tabsEl = document.getElementById("tabs");
+    const feedEl = document.getElementById("feed");
+
+    let allMatches = [];
+    let activeTopic = "전체";
+
+    function renderTabs() {
+      const topics = ["전체", ...new Set(allMatches.flatMap((m) => m.topics))];
+      tabsEl.innerHTML = "";
+      for (const topic of topics) {
+        const btn = document.createElement("button");
+        btn.className = "tab" + (topic === activeTopic ? " active" : "");
+        btn.textContent = topic;
+        btn.addEventListener("click", () => {
+          activeTopic = topic;
+          renderTabs();
+          renderFeed();
+        });
+        tabsEl.appendChild(btn);
+      }
+    }
+
+    function renderFeed() {
+      const filtered =
+        activeTopic === "전체"
+          ? allMatches
+          : allMatches.filter((m) => m.topics.includes(activeTopic));
+
+      feedEl.innerHTML = "";
+      for (const match of filtered) {
+        const card = document.createElement("a");
+        card.className = "card " + match.personal_relevance;
+        card.href = match.source_url;
+        card.target = "_blank";
+        card.rel = "noopener";
+
+        const topTag = match.topics[0] ?? "정책";
+        const deadlineText = match.deadline ? `~${match.deadline} 신청 가능` : "상시";
+
+        card.innerHTML = `
+          <div class="card-top">
+            <span class="tag">#${topTag}</span>
+          </div>
+          <p class="card-title">${match.one_line_summary}</p>
+          <p class="card-summary">${match.summary_easy ?? ""}</p>
+          <div class="card-footer">
+            <span>${match.benefit ?? ""}</span>
+            <span>${deadlineText}</span>
+          </div>
+        `;
+        feedEl.appendChild(card);
+      }
+    }
 
     async function loadMatches() {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -85,11 +223,16 @@
           throw new Error(`서버 응답 오류: ${response.status}`);
         }
 
-        const matches = await response.json();
+        allMatches = await response.json();
 
-        statusEl.textContent = `매칭된 정책 ${matches.length}건`;
-        resultEl.textContent = JSON.stringify(matches, null, 2);
-        resultEl.hidden = false;
+        if (allMatches.length === 0) {
+          statusEl.textContent = "지금 조건에 맞는 정책이 없어요.";
+          return;
+        }
+
+        statusEl.hidden = true;
+        renderTabs();
+        renderFeed();
       } catch (err) {
         console.error("[polistagram] 매칭 결과를 불러오지 못했습니다.", err);
         statusEl.textContent =
