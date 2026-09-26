@@ -7,7 +7,10 @@ article_id 기준으로 합치고, docs/schema.md 6절 점수 계산식으로
 personal_relevance가 direct/indirect인 문서만 다룬다 (none은 카드로 안 보여줄 정책).
 """
 
+import json
 from datetime import date
+
+import gspread
 
 from app.sheets import get_spreadsheet
 
@@ -23,10 +26,24 @@ def load_articles() -> list[dict]:
     raw_rows = spreadsheet.worksheet("articles_raw").get_all_records()
     triage_rows = spreadsheet.worksheet("articles_triage").get_all_records()
     detail_rows = spreadsheet.worksheet("articles_detail").get_all_records()
+    try:
+        feed_card_rows = spreadsheet.worksheet("articles_feed_card").get_all_records()
+    except gspread.WorksheetNotFound:
+        # app/feed_card_generator.py를 아직 한 번도 안 돌렸으면 시트 자체가 없을 수 있다 —
+        # 그 경우 My Feed 카드는 기존 필드(one_line_summary 등)로 대체 표시한다.
+        feed_card_rows = []
+    try:
+        cards_rows = spreadsheet.worksheet("articles_cards").get_all_records()
+    except gspread.WorksheetNotFound:
+        # app/card_generator.py를 아직 한 번도 안 돌렸으면 시트 자체가 없을 수 있다 —
+        # 그 경우 Story View는 프론트가 기존 필드로 카드를 즉석 합성한다(match.js).
+        cards_rows = []
 
     # article_id를 키로 하는 딕셔너리로 바꿔두면, raw 하나당 O(1)로 짝을 찾을 수 있다.
     triage_by_id = {row["article_id"]: row for row in triage_rows}
     detail_by_id = {row["article_id"]: row for row in detail_rows}
+    feed_card_by_id = {row["article_id"]: row for row in feed_card_rows}
+    cards_by_id = {row["article_id"]: row for row in cards_rows}
 
     articles = []
     for raw in raw_rows:
@@ -36,6 +53,8 @@ def load_articles() -> list[dict]:
             continue  # 2계층이 없거나(비정상) none이면 카드 후보에서 제외
 
         detail = detail_by_id.get(article_id, {})
+        feed_card = feed_card_by_id.get(article_id, {})
+        cards_row = cards_by_id.get(article_id, {})
 
         articles.append({
             "article_id": article_id,
@@ -55,6 +74,17 @@ def load_articles() -> list[dict]:
             "deadline": detail.get("deadline") or None,
             "region_scope": split_list(detail.get("region_scope", "")) or None,
             "evidence_quotes": split_list(detail.get("evidence_quotes", "")),
+            # My Feed 티저 카드용 (app/feed_card_generator.py). 아직 생성 전이면 전부 None —
+            # 프론트가 기존 필드(one_line_summary 등)로 대체 표시한다.
+            "feed_personalized_signal": feed_card.get("personalized_signal") or None,
+            "feed_title": feed_card.get("title") or None,
+            "feed_personalized_line": feed_card.get("personalized_line") or None,
+            "feed_visual_theme": feed_card.get("visual_theme") or None,
+            "feed_visual_elements": split_list(feed_card.get("visual_elements", "")),
+            "feed_tags": split_list(feed_card.get("tags", "")),
+            # Story View 카드뉴스 본문 (app/card_generator.py). 아직 생성 전이면 빈 배열 —
+            # 프론트가 기존 필드 조합으로 카드를 즉석 합성한다(match.js의 buildStoryCards).
+            "story_cards": json.loads(cards_row["cards_json"])["cards"] if cards_row.get("cards_json") else [],
         })
 
     return articles

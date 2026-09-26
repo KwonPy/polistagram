@@ -12,6 +12,7 @@ import os
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.matching import match_articles
@@ -81,3 +82,8 @@ def styles_css():
 @app.get("/match.js")
 def match_js():
     return FileResponse("match.js")
+
+
+# assets/ 아래 전체(지금은 assets/icons/*.png)를 /assets/... 로 그대로 서빙한다.
+# 파일이 하나씩 늘어도 라우트를 추가할 필요 없이 폴더 하나로 관리된다.
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")

@@ -35,23 +35,38 @@ function renderFeed() {
 
   feedEl.innerHTML = "";
   for (const match of filtered) {
+    const { theme, personalizedSignal, title, personalizedLine, tags, iconSlug } = buildFeedCard(
+      match,
+      currentProfile
+    );
+
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "card " + match.personal_relevance;
+    card.className = "card";
+    card.style.background = theme.bg;
     card.addEventListener("click", () => openCards(match));
-
-    const topTag = match.topics[0] ?? "정책";
-    const deadlineText = match.deadline ? `~${match.deadline} 신청 가능` : "상시";
 
     card.innerHTML = `
       <div class="card-top">
-        <span class="tag">#${topTag}</span>
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <span class="brand-name">polistagram</span>
+        </div>
+        <span class="card-more" aria-hidden="true">${iconMarkup("more", 18)}</span>
       </div>
-      <p class="card-title">${match.one_line_summary}</p>
-      <p class="card-summary">${match.summary_easy ?? ""}</p>
-      <div class="card-footer">
-        <span>${match.benefit ?? ""}</span>
-        <span>${deadlineText}</span>
+      ${
+        personalizedSignal
+          ? `<span class="card-pill" style="background:${theme.pillBg};color:${theme.pillText}">${iconMarkup("sparkle", 13)}${personalizedSignal}</span>`
+          : ""
+      }
+      <p class="card-title">${title}</p>
+      <div class="card-body-row">
+        <p class="card-line">${personalizedLine}</p>
+        <span class="card-arrow" style="color:${theme.hl}">${iconMarkup("arrowRight", 18)}</span>
+      </div>
+      <img class="card-icon" src="/assets/icons/${iconSlug}.png" alt="" />
+      <div class="card-tags">
+        ${tags.map((t) => `<span class="card-tag">#${t}</span>`).join("")}
       </div>
     `;
     feedEl.appendChild(card);
@@ -79,6 +94,9 @@ const ICON_SVGS = {
   gift: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><path d="M3 12h18"/><path d="M7.5 8a2.5 2.5 0 010-5C9.5 3 12 5 12 8"/><path d="M16.5 8a2.5 2.5 0 000-5C14.5 3 12 5 12 8"/>',
   check: '<polyline points="4 12 9 17 20 6"/>',
   lightbulb: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0012 2z"/>',
+  more: '<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  sparkle: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/>',
+  arrowRight: '<line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/>',
 };
 
 function iconMarkup(key, size) {
@@ -102,6 +120,73 @@ const TOPIC_ICON = {
 
 function pickTopicIcon(match) {
   return TOPIC_ICON[match.topics[0]] || "document";
+}
+
+// My Feed 카드 배경 이미지 — scripts/generate_topic_icons.py로 만들려던 자리인데
+// Gemini 이미지 생성 모델은 무료 티어 할당량이 0이라(2026-09-26 확인), 대신
+// Microsoft Fluent Emoji 3D(MIT 라이선스, 무료)를 내려받아 assets/icons/에 넣었다.
+const TOPIC_ICON_SLUG = {
+  "대출": "loan",
+  "주거·전세": "housing",
+  "저축·자산형성": "savings",
+  "투자·주식": "invest",
+  "보험": "insurance",
+  "창업·사업자금": "business",
+  "취업·채용": "job",
+  "기타": "etc",
+};
+
+// 레퍼런스(ref.png)의 4가지 파스텔 톤 카드를 재현한 색 팔레트. 정책 주제에 따라
+// 하나를 고른다 — card_type(Story View)과 마찬가지로 "고정 팔레트 + 가변 선택".
+const FEED_THEMES = {
+  blue: { bg: "linear-gradient(160deg, #eaf2fb 0%, #dbe9f8 100%)", pillBg: "#dbeafe", pillText: "#1d4ed8", hl: "#2563eb" },
+  green: { bg: "linear-gradient(160deg, #eafaf0 0%, #ddf3e4 100%)", pillBg: "#d1fae5", pillText: "#047857", hl: "#059669" },
+  purple: { bg: "linear-gradient(160deg, #f3f0fb 0%, #ece6f8 100%)", pillBg: "#ede9fe", pillText: "#6d28d9", hl: "#7c3aed" },
+  orange: { bg: "linear-gradient(160deg, #fff7ec 0%, #ffedd5 100%)", pillBg: "#ffedd5", pillText: "#c2410c", hl: "#ea580c" },
+};
+const TOPIC_THEME = {
+  "저축·자산형성": "blue",
+  "취업·채용": "blue",
+  "주거·전세": "green",
+  "대출": "green",
+  "보험": "purple",
+  "기타": "purple",
+  "투자·주식": "orange",
+  "창업·사업자금": "orange",
+};
+
+function pickFeedTheme(match) {
+  return FEED_THEMES[TOPIC_THEME[match.topics[0]] || "blue"];
+}
+
+// 제목 안에서 주제 키워드를 찾아 테마 색으로 강조한다 (레퍼런스처럼 "대출 제도"만
+// 파랗게 되는 효과). 못 찾으면 그냥 평문으로 보여준다 — 억지로 아무 단어나 감싸지 않는다.
+function highlightKeyword(text, keyword, color) {
+  if (!keyword || !text.includes(keyword)) return text;
+  return text.replace(keyword, `<span style="color:${color}">${keyword}</span>`);
+}
+
+// 지금은 app/feed_card_generator.py가 만든 티저 문구(Gemini 생성)가 아직 없을 수 있어서
+// (할당량 문제로 아직 한 번도 안 돌렸다), 있으면 그걸 쓰고 없으면 기존 2/3계층 필드로
+// 대체 표시한다. personal_relevance 값 자체는 노출하지 않는다.
+function buildFeedCard(match, profile) {
+  const theme = pickFeedTheme(match);
+  const overlap = profile ? match.topics.filter((t) => profile.interests?.includes(t)) : [];
+  const isDirect = match.personal_relevance === "direct";
+
+  const personalizedSignal =
+    match.feed_personalized_signal || (isDirect && overlap.length > 0 ? "나에게 관련 있어요" : null);
+
+  const rawTitle = match.feed_title || match.one_line_summary;
+  const keyword = match.topics[0];
+  const title = highlightKeyword(rawTitle, keyword, theme.hl);
+
+  const personalizedLine = match.feed_personalized_line || match.summary_easy || "";
+
+  const tags = (match.feed_tags.length ? match.feed_tags : match.topics.slice(0, 2)).slice(0, 2);
+  const iconSlug = TOPIC_ICON_SLUG[keyword] || "etc";
+
+  return { theme, personalizedSignal, title, personalizedLine, tags, iconSlug };
 }
 
 // "저축·자산형성" 처럼 받침 있는 단어 뒤엔 "과", 받침 없으면 "와" — 조사를 자동으로 고른다.
@@ -233,16 +318,57 @@ function buildStoryCards(match, profile) {
     });
   }
 
-  // 6. 출처 — LLM이 만들지 않는다. 원문 링크는 코드가 그대로 붙인다 (설계 문서 4절).
-  cards.push({
+  cards.push(buildSourceCard(match));
+  return cards;
+}
+
+// 출처 카드는 실제 데이터든 목업이든 항상 코드가 붙인다 — LLM이 원문 링크를
+// 만들면 오탈자/환각 위험만 생긴다 (설계 문서 4절).
+function buildSourceCard(match) {
+  return {
     type: "source",
     badgeIcon: "externalLink",
     badgeLabel: "원문 보기",
     headline: `정책 원문에서<br>자세히 확인하세요`,
     ctaLink: match.source_url,
     caption: `출처: 금융위원회 보도자료${match.published_at ? " · " + match.published_at : ""}`,
-  });
+  };
+}
 
+// app/card_generator.py가 만든 실제 카드(article_id당 1번 캐싱)를 화면 카드 형태로
+// 바꾼다. 실제 타입(hook/policy/key_change/personal_impact/action_timing)을 지금 쓰는
+// CSS 카드 타입(hook/intro/change/impact/schedule)에 매핑한다.
+const REAL_CARD_MAP = {
+  hook: { cssType: "hook", icon: "target", badge: "당신에게 관련된 정책이에요" },
+  policy: { cssType: "intro", icon: "document", badge: "정책 소개" },
+  key_change: { cssType: "change", icon: "refreshCw", badge: "주요 변화" },
+  personal_impact: { cssType: "impact", icon: "trendingUp", badge: "개인적 영향" },
+  action_timing: { cssType: "schedule", icon: "calendar", badge: "신청 방법과 주요 일정" },
+};
+
+// highlight(강조 구절)가 headline 안에 있으면 색을 입히고, 없으면 그냥 둔다.
+function wrapHighlight(text, highlight) {
+  if (!highlight || !text.includes(highlight)) return text;
+  return text.replace(highlight, `<span class="hl">${highlight}</span>`);
+}
+
+function buildCardsFromReal(match) {
+  const cards = match.story_cards.map((item) => {
+    const cardMap = REAL_CARD_MAP[item.type] || REAL_CARD_MAP.policy;
+    // highlight는 headline 또는 copy 어느 쪽에 들어있을지 몰라서 둘 다 시도한다.
+    const headline = wrapHighlight(item.headline, item.highlight);
+    const lead = headline === item.headline ? wrapHighlight(item.copy, item.highlight) : item.copy;
+    return {
+      type: cardMap.cssType,
+      badgeIcon: cardMap.icon,
+      badgeLabel: cardMap.badge,
+      headline,
+      lead,
+      // "정책 소개" 카드에만, 목업 때와 마찬가지로 주제 아이콘 장식을 넣는다.
+      bodyHtml: cardMap.cssType === "intro" ? `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>` : "",
+    };
+  });
+  cards.push(buildSourceCard(match));
   return cards;
 }
 
@@ -252,9 +378,12 @@ const cardsDots = document.getElementById("cardsDotsBottom");
 const cardsCounter = document.getElementById("cardsCounter");
 const cardsClose = document.getElementById("cardsClose");
 let cardsTotal = 1;
+let lastFocusedEl = null; // 오버레이를 닫을 때 포커스를 원래 누르던 카드로 되돌리려고 기억해둔다.
 
 function openCards(match) {
-  const cards = buildStoryCards(match, currentProfile);
+  // app/card_generator.py가 이미 만들어둔 실제 카드가 있으면 그걸 쓰고,
+  // 아직 없으면(할당량/미실행) 기존 필드 조합으로 즉석 합성한다.
+  const cards = match.story_cards.length ? buildCardsFromReal(match) : buildStoryCards(match, currentProfile);
   cardsTotal = cards.length;
 
   cardsTrack.innerHTML = cards
@@ -277,12 +406,18 @@ function openCards(match) {
     .join("");
   cardsCounter.textContent = `1/${cardsTotal}`;
 
+  lastFocusedEl = document.activeElement;
   cardsOverlay.classList.add("open");
   cardsTrack.scrollLeft = 0;
+  // 모달을 열었으면 포커스도 모달 안으로 들어가야 한다 — 안 그러면 키보드/스크린리더
+  // 사용자는 뒤에 깔린 피드에 포커스가 남아있는 채로 "떠 있는" 화면을 마주하게 된다.
+  cardsClose.focus();
 }
 
 function closeCards() {
   cardsOverlay.classList.remove("open");
+  // 열 때 기억해둔 트리거(카드 버튼)로 포커스를 되돌려서, 방금 있던 자리로 자연스럽게 이어진다.
+  lastFocusedEl?.focus();
 }
 
 cardsClose.addEventListener("click", closeCards);

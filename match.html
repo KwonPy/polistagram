@@ -26,23 +26,28 @@
   </main>
 
   <div id="cardsOverlay" role="dialog" aria-modal="true" aria-label="정책 카드뉴스">
-    <div id="cardsTopBar">
-      <div class="brand">
-        <span class="brand-mark"></span>
-        <span class="brand-name">Polistagram</span>
+    <!-- 실제 인스타그램 웹처럼, 화면 전체를 카드로 채우지 않고 가운데에 좁고 긴 세로
+         카드(스테이지)만 두고 나머지는 어두운 배경으로 둔다. 모바일 폭에서는 스테이지가
+         화면 전체를 자연스럽게 채운다. -->
+    <div id="cardsStage">
+      <div id="cardsTopBar">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <span class="brand-name">Polistagram</span>
+        </div>
+        <div id="cardsTopRight">
+          <span id="cardsCounter">1/1</span>
+          <button id="cardsClose" type="button" aria-label="닫기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="4" y1="4" x2="20" y2="20" />
+              <line x1="20" y1="4" x2="4" y2="20" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div id="cardsTopRight">
-        <span id="cardsCounter">1/1</span>
-        <button id="cardsClose" type="button" aria-label="닫기">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="4" y1="4" x2="20" y2="20" />
-            <line x1="20" y1="4" x2="4" y2="20" />
-          </svg>
-        </button>
-      </div>
+      <div id="cardsTrack"></div>
+      <div id="cardsDotsBottom"></div>
     </div>
-    <div id="cardsTrack"></div>
-    <div id="cardsDotsBottom"></div>
   </div>
 
   <script src="match.js"></script>
