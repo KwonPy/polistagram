@@ -7,12 +7,15 @@
     uvicorn app.main:app --reload
 """
 
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.matching import match_articles
+from app.rss_collector import collect_new_articles
 
 app = FastAPI(title="Polistagram API")
 
@@ -39,6 +42,21 @@ class Profile(BaseModel):
 def match(profile: Profile):
     """프로필을 받아 매칭된 정책 목록을 점수 높은 순으로 반환한다."""
     return match_articles(profile.model_dump())
+
+
+@app.get("/api/collect")
+def collect(authorization: str | None = Header(default=None)):
+    """금융위 RSS에서 신규 보도자료를 articles_raw에 저장한다. Vercel Cron이 매일 호출한다.
+
+    Vercel Cron은 CRON_SECRET 환경변수가 설정돼 있으면 요청 헤더에
+    `Authorization: Bearer <CRON_SECRET>`을 자동으로 실어서 보낸다. 이 값이 맞는
+    요청만 실행하도록 해서, 아무나 이 주소를 호출해 시트에 계속 쓰기를 시도하는
+    것을 막는다. 로컬 개발처럼 CRON_SECRET을 안 정해둔 환경에서는 검사를 건너뛴다.
+    """
+    secret = os.environ.get("CRON_SECRET")
+    if secret and authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return collect_new_articles()
 
 
 # 아래 두 라우트는 로컬에서 `uvicorn app.main:app`만으로 프론트+API를 한 주소에서
