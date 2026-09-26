@@ -120,10 +120,6 @@ const TOPIC_ICON = {
   "기타": "document",
 };
 
-function pickTopicIcon(match) {
-  return TOPIC_ICON[match.topics[0]] || "document";
-}
-
 // My Feed 카드 배경 이미지 — scripts/generate_topic_icons.py로 만들려던 자리인데
 // Gemini 이미지 생성 모델은 무료 티어 할당량이 0이라(2026-09-26 확인), 대신
 // Microsoft Fluent Emoji 3D(MIT 라이선스, 무료)를 내려받아 assets/icons/에 넣었다.
@@ -246,8 +242,10 @@ function splitToItems(text, max = 3) {
 }
 
 // intro 카드: 혜택 문구가 여러 항목이면 아이콘 리스트로, 아니면 기존 요약 박스로.
+// 예전에는 여기에 아무 정보도 없는 장식용 원형 아이콘(icon-hero)을 넣었는데
+// (2026-09-27, 사용자 피드백으로 제거) — 내용이 짧은 카드일수록 "디자인에 맞추려고
+// 채워넣은 빈 자리"처럼 보인다는 지적이 있었다. 정보가 있는 요소만 남긴다.
 function buildIntroBody(match) {
-  const iconHero = `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>`;
   const items = match.benefit ? splitToItems(match.benefit) : [];
 
   if (items.length > 0) {
@@ -261,13 +259,15 @@ function buildIntroBody(match) {
         `
       )
       .join("");
-    return { lead: firstSentence(match.summary_easy), bodyHtml: `${iconHero}<div class="item-list">${rows}</div>` };
+    return { lead: firstSentence(match.summary_easy), bodyHtml: `<div class="item-list">${rows}</div>` };
   }
 
+  // summary_easy 전체를 아래 박스에 그대로 보여줄 거라, 위쪽 리드 문구에 첫 문장을
+  // 또 넣으면 같은 문장이 두 번 보인다 (change 카드에서 발견된 것과 같은 문제).
+  // 이 경우엔 리드를 비우고 박스 하나로만 보여준다.
   return {
-    lead: firstSentence(match.summary_easy),
+    lead: "",
     bodyHtml: `
-      ${iconHero}
       <div class="summary-box">
         <p class="summary-label">${iconMarkup("document", 14)}한 줄 요약</p>
         <p class="summary-text">${match.summary_easy || "아직 쉬운 설명이 준비되지 않았어요."}</p>
@@ -285,9 +285,15 @@ const BEFORE_LABEL_BY_DOC_TYPE = {
   info: "이런 소식이 알려지기 전이에요",
   admin: "기존 행정 절차가 적용되고 있었어요",
 };
-function buildChangeDiagram(match) {
+function buildChangeDiagram(match, card) {
   const before = BEFORE_LABEL_BY_DOC_TYPE[match.doc_type] || "기존에는 달랐어요";
-  const after = match.one_line_summary || "";
+  // 카드 자신의 문구(card.changeText = LLM이 쓴 copy)가 있으면 그걸 쓴다 — 한 기사에
+  // change 타입 카드가 여러 장(예: key_change가 2장)이어도 서로 다른 "변경" 내용이
+  // 보이게 하기 위함. 카드 없이 합성한 경로(buildStoryCards)는 match.one_line_summary로
+  // 대체한다. card.lead가 아니라 card.changeText를 읽는 이유: lead는 이 카드가 화면에
+  // 이미 한 번 보여준 값이라 (또는 중복을 막으려고 비워둔 값이라), 여기서 그대로
+  // 다시 쓰면 같은 문장이 두 번 보이거나 꼬인다.
+  const after = card?.changeText || match.one_line_summary || "";
   const bars = (heights) => heights.map((h) => `<span style="height:${h}px"></span>`).join("");
 
   return `
@@ -326,6 +332,8 @@ function buildImpactDiagram(match) {
     rowsHtml = `<div class="info-box">${infoRow("user", "지원 대상", match.target)}</div>`;
   }
 
+  // match.benefit이 없으면 팁 박스를 만들지 않는다 — 카드 자신의 문구(card.lead)는
+  // 이미 위쪽 .story-lead로 보이고 있어서, 여기 또 넣으면 같은 문장이 두 번 보인다.
   const tip = match.benefit
     ? `
       <div class="tip-box">
@@ -347,6 +355,9 @@ function buildScheduleDiagram(match) {
   if (match.target) items.push({ label: "신청 대상", value: match.target });
   if (match.deadline) items.push({ label: "마감", value: match.deadline });
 
+  // 일정 관련 구조화 필드가 하나도 없으면 빈 문자열을 반환한다 — 호출부(applyDiagrams)가
+  // 이 경우 기존 bodyHtml(실제 카드라면 buildCardsFromReal이 이미 만들어둔 정보 패널)을
+  // 그대로 남겨두고 덮어쓰지 않는다.
   const bodyHtml = items.length
     ? `<div class="timeline">${items
         .map(
@@ -377,12 +388,14 @@ function applyDiagrams(cards, match) {
     if (card.type === "hook") {
       card.bodyHtml = (card.bodyHtml || "") + buildHashtagRow(match);
     } else if (card.type === "change") {
-      card.bodyHtml = buildChangeDiagram(match);
+      card.bodyHtml = buildChangeDiagram(match, card);
     } else if (card.type === "impact") {
       card.bodyHtml = buildImpactDiagram(match);
     } else if (card.type === "schedule") {
       const sched = buildScheduleDiagram(match);
-      card.bodyHtml = sched.bodyHtml;
+      // 구조화된 일정 필드가 없으면 sched.bodyHtml이 빈 문자열이다 — 이때는 실제 카드라면
+      // buildCardsFromReal이 이미 만들어둔 정보 패널(card.bodyHtml)을 그대로 둔다.
+      if (sched.bodyHtml) card.bodyHtml = sched.bodyHtml;
       card.ctaLink = sched.ctaLink;
       card.ctaLabel = sched.ctaLabel;
     }
@@ -448,13 +461,14 @@ function buildStoryCards(match, profile) {
     bodyHtml: introBody.bodyHtml,
   });
 
-  // 3. 주요 변화 — 개인화 여부와 무관하게, 정책 자체가 무엇을 바꾸는지
+  // 3. 주요 변화 — 개인화 여부와 무관하게, 정책 자체가 무엇을 바꾸는지.
+  // lead를 따로 넣지 않는다 — 아래 buildChangeDiagram이 match.one_line_summary를
+  // 비교박스 "변경" 칸에 그대로 보여주므로, 여기 또 넣으면 같은 문장이 두 번 보인다.
   cards.push({
     type: "change",
     badgeIcon: "refreshCw",
     badgeLabel: "주요 변화",
     headline: CHANGE_LABEL_BY_DOC_TYPE[match.doc_type] || "이런 점이 달라져요",
-    lead: match.one_line_summary,
   });
 
   // 4. 개인적 영향 — target/benefit 원문 근거가 있을 때만. 없으면 지어내지 않고 생략한다.
@@ -487,32 +501,45 @@ function buildStoryCards(match, profile) {
     });
   }
 
-  cards.push(buildSourceCard(match));
-  return applyDiagrams(cards, match);
+  return attachSourceCta(applyDiagrams(cards, match), match);
 }
 
-// 출처 카드는 실제 데이터든 목업이든 항상 코드가 붙인다 — LLM이 원문 링크를
-// 만들면 오탈자/환각 위험만 생긴다 (설계 문서 4절).
-function buildSourceCard(match) {
-  return {
-    type: "source",
-    badgeIcon: "externalLink",
-    badgeLabel: "원문 보기",
-    headline: `정책 원문에서<br>자세히 확인하세요`,
-    ctaLink: match.source_url,
-    caption: `출처: 금융위원회 보도자료${match.published_at ? " · " + match.published_at : ""}`,
-  };
+// 예전에는 "원문 보기"만을 위한 카드(source)를 마지막에 따로 한 장 더 붙였는데,
+// schedule 카드의 "자세한 내용 보러가기" 버튼과 하는 일이 완전히 겹쳐서 카드 수만
+// 늘리는 중복 페이지였다 (2026-09-27, 사용자 피드백으로 제거). 이제 마지막 카드에
+// 원문 링크가 없을 때만(= schedule 카드가 아예 없었던 기사) 이 버튼을 붙여서, 어떤
+// 경우에도 원문을 보러 갈 방법 자체는 사라지지 않게 한다.
+function attachSourceCta(cards, match) {
+  const last = cards[cards.length - 1];
+  if (last && !last.ctaLink) {
+    last.ctaLink = match.source_url;
+    last.ctaLabel = last.ctaLabel || "원문 보러가기";
+  }
+  if (last && !last.caption) {
+    last.caption = `출처: 금융위원회 보도자료${match.published_at ? " · " + match.published_at : ""}`;
+  }
+  return cards;
 }
 
 // app/card_generator.py가 만든 실제 카드(article_id당 1번 캐싱)를 화면 카드 형태로
 // 바꾼다. 실제 타입(hook/policy/change/impact/timing)을 지금 쓰는
 // CSS 카드 타입(hook/intro/change/impact/schedule)에 매핑한다.
+//
+// summary/key_change/personal_reason/key_info는 지금 스펙 이전 버전의
+// card_generator.py가 Google Sheets(articles_cards)에 이미 저장해둔 값이다 (2026-09-27
+// 발견 — 이 별칭이 없으면 전부 REAL_CARD_MAP.policy로 폴백해서 change/impact/schedule
+// 카드가 전부 "정책 소개"처럼 밋밋하게만 보였다). 시트를 다시 생성하지 않고 이 매핑만
+// 넓혀서 기존 데이터도 올바른 다이어그램으로 보이게 한다.
 const REAL_CARD_MAP = {
   hook: { cssType: "hook", icon: "target", badge: "당신에게 관련된 정책이에요" },
   policy: { cssType: "intro", icon: "document", badge: "정책 소개" },
+  summary: { cssType: "intro", icon: "document", badge: "정책 소개" },
   change: { cssType: "change", icon: "refreshCw", badge: "주요 변화" },
+  key_change: { cssType: "change", icon: "refreshCw", badge: "주요 변화" },
   impact: { cssType: "impact", icon: "trendingUp", badge: "개인적 영향" },
+  personal_reason: { cssType: "impact", icon: "trendingUp", badge: "개인적 영향" },
   timing: { cssType: "schedule", icon: "calendar", badge: "신청 방법과 주요 일정" },
+  key_info: { cssType: "schedule", icon: "calendar", badge: "신청 방법과 주요 일정" },
 };
 
 // highlight(강조 구절)가 headline 안에 있으면 색을 입히고, 없으면 그냥 둔다.
@@ -545,10 +572,7 @@ function buildCardsFromReal(match) {
 
     let bodyHtml = "";
     let numberBadge = "";
-    if (cardMap.cssType === "intro") {
-      // "정책 소개" 카드에는 주제 아이콘 장식을 넣는다.
-      bodyHtml = `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>`;
-    } else if (cardMap.cssType === "change") {
+    if (cardMap.cssType === "change") {
       // "주요 변화" 카드는 편집 매거진처럼 번호를 큰 배지로 분리한다.
       const split = splitCircledNumber(item.headline);
       if (split) {
@@ -563,20 +587,27 @@ function buildCardsFromReal(match) {
       bodyHtml = `<div class="info-panel">${lead}</div>`;
     }
 
+    // change 타입은 뒤에서 applyDiagrams가 비교박스(Before/After) 안에 이 카드의 문구를
+    // 넣는다 — changeText로 따로 들고 있다가 그때 쓴다. 화면에 쓰이는 lead 자체를
+    // 그대로 넘기면, 비교박스가 나중에 값을 읽을 카드 객체가 이미 변형된 뒤라 꼬인다.
+    const changeText = cardMap.cssType === "change" ? lead : undefined;
+
     return {
       type: cardMap.cssType,
       badgeIcon: cardMap.icon,
       badgeLabel: cardMap.badge,
       numberBadge,
       headline,
-      // schedule은 이미 bodyHtml(info-panel) 안에 본문을 넣었으니 lead를 중복 출력하지 않는다.
-      lead: cardMap.cssType === "schedule" ? "" : lead,
+      // schedule/change는 이미 다른 곳(info-panel/비교박스)에 본문을 넣으니 lead를
+      // 중복 출력하지 않는다 (2026-09-27, change 카드에서 리드 문구와 "변경" 박스에
+      // 똑같은 문장이 두 번 보이던 문제를 사용자가 지적해서 고쳤다).
+      lead: ["schedule", "change"].includes(cardMap.cssType) ? "" : lead,
+      changeText,
       bodyHtml,
       terms,
     };
   });
-  cards.push(buildSourceCard(match));
-  return applyDiagrams(cards, match);
+  return attachSourceCta(applyDiagrams(cards, match), match);
 }
 
 const cardsOverlay = document.getElementById("cardsOverlay");
