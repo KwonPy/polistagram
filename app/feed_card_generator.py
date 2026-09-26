@@ -30,11 +30,9 @@ from app.sheets import get_or_create_worksheet, get_spreadsheet, join_list
 MODEL = "gemini-3.5-flash-lite"
 CALL_INTERVAL_SECONDS = 4  # 무료 티어 분당 호출 제한을 피하려고 호출 사이 대기 (triage_collector와 동일)
 
-VISUAL_THEMES = ["soft_3d_object", "clean_infographic", "flat_illustration", "editorial_minimal"]
-
 FEED_CARD_HEADERS = [
     "article_id", "personalized_signal", "title", "personalized_line",
-    "visual_theme", "visual_elements", "tags",
+    "visual_elements", "tags",
 ]
 
 RESPONSE_SCHEMA = {
@@ -43,11 +41,10 @@ RESPONSE_SCHEMA = {
         "personalized_signal": {"type": "STRING", "nullable": True},
         "title": {"type": "STRING"},
         "personalized_line": {"type": "STRING", "nullable": True},
-        "visual_theme": {"type": "STRING", "enum": VISUAL_THEMES},
         "visual_elements": {"type": "ARRAY", "items": {"type": "STRING"}},
         "tags": {"type": "ARRAY", "items": {"type": "STRING"}},
     },
-    "required": ["title", "visual_theme", "visual_elements", "tags"],
+    "required": ["title", "visual_elements", "tags"],
 }
 
 PROMPT_TEMPLATE = """당신은 금융위원회 보도자료를 바탕으로 Polistagram My Feed에 노출될
@@ -61,18 +58,15 @@ PROMPT_TEMPLATE = """당신은 금융위원회 보도자료를 바탕으로 Poli
 뚜렷하지 않은 일반 정보성 정책이면 반드시 null. personal_relevance 값 자체("direct"
 등)를 문구에 그대로 쓰지 않는다.
 
-[title] 정책의 핵심을 15~25자로 짧고 명확하게. 원문 제목이 길면 자연스럽게 축약하되
-과장하거나 원문에 없는 의미를 더하지 않는다.
+[title] 원문 제목을 그대로 축약하지 않는다. 목록을 훑던 사람이 멈칫하고 다시 읽게 되는
+한 문장으로 다시 쓴다 — 정책의 핵심 변화나 혜택이 바로 느껴지게. 15~25자.
+나쁜 예(원문 축약): "2027년 금융위 청년 금융 지원 사업 계획 발표"
+좋은 예(핵심 재구성): "내 집 마련부터 창업까지, 청년 지원 다 바뀐다"
+과장하거나 원문에 없는 의미를 더하지는 않는다 — 있는 사실을 더 눈에 띄게 배열할 뿐이다.
 
 [personalized_line] 대상(target)과 정책 성격을 바탕으로, 왜 이 정책이 그 대상에게
 관련 있는지 25~50자로 설명한다 (예: "20대 청년의 자산형성과 관련된 정책이에요"). 특정
 대상이 불분명하면 반드시 null — 일반 정보성 정책에 억지로 개인화 문구를 붙이지 않는다.
-
-[visual_theme] 정책 성격에 가장 잘 맞는 디자인 스타일 하나를 고른다.
-- soft_3d_object: 저금통·집·카드·동전 같은 입체적 금융 오브젝트가 어울릴 때
-- clean_infographic: 수치·비율·그래프 중심으로 보여주는 게 나을 때
-- flat_illustration: 단순하고 친근한 도형/아이콘이 어울릴 때
-- editorial_minimal: 오브젝트보다 핵심 문장 자체가 강조돼야 할 때 (텍스트 중심)
 
 [visual_elements] 정책 내용을 상징하는 오브젝트·아이콘·그래프 키워드를 2~4개, 짧은
 한국어 명사로 나열한다 (예: "저금통", "상승 그래프"). 나이나 성별에 맞춘 사람 캐릭터는
@@ -140,7 +134,6 @@ def build_prompt(row: dict) -> str:
 def is_valid(result: dict) -> bool:
     return (
         bool(result.get("title"))
-        and result.get("visual_theme") in VISUAL_THEMES
         and isinstance(result.get("visual_elements"), list)
         and len(result["visual_elements"]) > 0
         and isinstance(result.get("tags"), list)
@@ -154,7 +147,6 @@ def build_feed_card_row(article_id: str, result: dict) -> list:
         result.get("personalized_signal") or "",
         result["title"],
         result.get("personalized_line") or "",
-        result["visual_theme"],
         join_list(result["visual_elements"]),
         join_list(result["tags"]),
     ]

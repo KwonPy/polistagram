@@ -79,7 +79,6 @@ def load_articles() -> list[dict]:
             "feed_personalized_signal": feed_card.get("personalized_signal") or None,
             "feed_title": feed_card.get("title") or None,
             "feed_personalized_line": feed_card.get("personalized_line") or None,
-            "feed_visual_theme": feed_card.get("visual_theme") or None,
             "feed_visual_elements": split_list(feed_card.get("visual_elements", "")),
             "feed_tags": split_list(feed_card.get("tags", "")),
             # Story View 카드뉴스 본문 (app/card_generator.py). 아직 생성 전이면 빈 배열 —

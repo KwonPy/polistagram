@@ -27,6 +27,8 @@ function renderTabs() {
   }
 }
 
+// 첫 카드는 매거진 커버처럼 크게, 나머지는 아이콘+텍스트를 가로로 배치한 컴팩트한
+// 행으로 보여준다 (2026-09-27, 4색 배경 대신 콘텐츠 자체로 카드를 구별하는 방향).
 function renderFeed() {
   const filtered =
     activeTopic === "전체"
@@ -34,43 +36,49 @@ function renderFeed() {
       : allMatches.filter((m) => m.topics.includes(activeTopic));
 
   feedEl.innerHTML = "";
-  for (const match of filtered) {
-    const { theme, personalizedSignal, title, personalizedLine, tags, iconSlug } = buildFeedCard(
+  filtered.forEach((match, index) => {
+    const { personalizedSignal, title, personalizedLine, tags, iconSlug, cardCount } = buildFeedCard(
       match,
       currentProfile
     );
+    const isCover = index === 0;
 
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "card";
-    card.style.background = theme.bg;
+    card.className = "card " + (isCover ? "card--cover" : "card--compact");
     card.addEventListener("click", () => openCards(match));
 
-    card.innerHTML = `
-      <div class="card-top">
-        <div class="brand">
-          <span class="brand-mark"></span>
-          <span class="brand-name">polistagram</span>
+    const signalHtml = personalizedSignal
+      ? `<span class="card-pill">${iconMarkup("sparkle", 13)}${personalizedSignal}</span>`
+      : "";
+    const tagsHtml = `<div class="card-tags">${tags.map((t) => `<span class="card-tag">#${t}</span>`).join("")}</div>`;
+    // 예전엔 "···"와 화살표 아이콘이 있었는데 둘 다 눌러도 아무 일도 없는 장식이었다.
+    // 대신 실제 정보(스토리 카드가 몇 장인지)를 보여준다.
+    const countHtml = `<span class="card-count">${cardCount}장</span>`;
+
+    card.innerHTML = isCover
+      ? `
+        <div class="card-top">
+          <div class="brand"><span class="brand-mark"></span><span class="brand-name">polistagram</span></div>
+          ${countHtml}
         </div>
-        <span class="card-more" aria-hidden="true">${iconMarkup("more", 18)}</span>
-      </div>
-      ${
-        personalizedSignal
-          ? `<span class="card-pill" style="background:${theme.pillBg};color:${theme.pillText}">${iconMarkup("sparkle", 13)}${personalizedSignal}</span>`
-          : ""
-      }
-      <p class="card-title">${title}</p>
-      <div class="card-body-row">
+        ${signalHtml}
+        <p class="card-title">${title}</p>
         <p class="card-line">${personalizedLine}</p>
-        <span class="card-arrow" style="color:${theme.hl}">${iconMarkup("arrowRight", 18)}</span>
-      </div>
-      <img class="card-icon" src="/assets/icons/${iconSlug}.png" alt="" />
-      <div class="card-tags">
-        ${tags.map((t) => `<span class="card-tag">#${t}</span>`).join("")}
-      </div>
-    `;
+        <div class="card-icon">${phosphorIcon(iconSlug, 64)}</div>
+        ${tagsHtml}
+      `
+      : `
+        <div class="card-thumb">${phosphorIcon(iconSlug, 30)}</div>
+        <div class="card-compact-body">
+          ${signalHtml}
+          <p class="card-title">${title}</p>
+          <p class="card-line">${personalizedLine}</p>
+          <div class="card-compact-foot">${tagsHtml}${countHtml}</div>
+        </div>
+      `;
     feedEl.appendChild(card);
-  }
+  });
 }
 
 // --- 카드뉴스(Story View) 오버레이 ---
@@ -107,6 +115,27 @@ function iconMarkup(key, size) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 }
 
+// My Feed 주제 아이콘 — Phosphor Icons(MIT, unpkg CDN에서 정적 SVG로 내려받음) duotone
+// 스타일. Gemini 호출이 없어서 할당량 문제가 없고, fill="currentColor"라 CSS color만
+// 바꾸면 브랜드 톤에 맞출 수 있다 (2026-09-27, 기존 8개 PNG 대체 — ICON_SVGS와 viewBox가
+// 달라서 별도 헬퍼로 둔다).
+const PHOSPHOR_ICONS = {
+  loan: '<path d="M16,152H48v56H16a8,8,0,0,1-8-8V160A8,8,0,0,1,16,152ZM204,56a28,28,0,0,0-12,2.71h0A28,28,0,1,0,176,85.29h0A28,28,0,1,0,204,56Z" opacity="0.2"/><path d="M230.33,141.06a24.43,24.43,0,0,0-21.24-4.23l-41.84,9.62A28,28,0,0,0,140,112H89.94a31.82,31.82,0,0,0-22.63,9.37L44.69,144H16A16,16,0,0,0,0,160v40a16,16,0,0,0,16,16H120a7.93,7.93,0,0,0,1.94-.24l64-16a6.94,6.94,0,0,0,1.19-.4L226,182.82l.44-.2a24.6,24.6,0,0,0,3.93-41.56ZM16,160H40v40H16Zm203.43,8.21-38,16.18L119,200H56V155.31l22.63-22.62A15.86,15.86,0,0,1,89.94,128H140a12,12,0,0,1,0,24H112a8,8,0,0,0,0,16h32a8.32,8.32,0,0,0,1.79-.2l67-15.41.31-.08a8.6,8.6,0,0,1,6.3,15.9ZM164,96a36,36,0,0,0,5.9-.48,36,36,0,1,0,28.22-47A36,36,0,1,0,164,96Zm60-12a20,20,0,1,1-20-20A20,20,0,0,1,224,84ZM164,40a20,20,0,0,1,19.25,14.61,36,36,0,0,0-15,24.93A20.42,20.42,0,0,1,164,80a20,20,0,0,1,0-40Z"/>',
+  housing: '<path d="M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"/><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"/>',
+  savings: '<path d="M240,112v32a16,16,0,0,1-16,16h-8l-18.1,50.69a8,8,0,0,1-7.54,5.31H177.64a8,8,0,0,1-7.54-5.31L166.29,200H97.71L93.9,210.69A8,8,0,0,1,86.36,216H73.64a8,8,0,0,1-7.54-5.31L53,174a79.7,79.7,0,0,1-21-54h0a80,80,0,0,1,80-80h32a80,80,0,0,1,73.44,48.22,82.22,82.22,0,0,1,2.9,7.78H224A16,16,0,0,1,240,112Z" opacity="0.2"/><path d="M192,116a12,12,0,1,1-12-12A12,12,0,0,1,192,116ZM152,64H112a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm96,48v32a24,24,0,0,1-24,24h-2.36l-16.21,45.38A16,16,0,0,1,190.36,224H177.64a16,16,0,0,1-15.07-10.62L160.65,208h-57.3l-1.92,5.38A16,16,0,0,1,86.36,224H73.64a16,16,0,0,1-15.07-10.62L46,178.22a87.69,87.69,0,0,1-21.44-48.38A16,16,0,0,0,16,144a8,8,0,0,1-16,0,32,32,0,0,1,24.28-31A88.12,88.12,0,0,1,112,32H216a8,8,0,0,1,0,16H194.61a87.93,87.93,0,0,1,30.17,37c.43,1,.85,2,1.25,3A24,24,0,0,1,248,112Zm-16,0a8,8,0,0,0-8-8h-3.66a8,8,0,0,1-7.64-5.6A71.9,71.9,0,0,0,144,48H112A72,72,0,0,0,58.91,168.64a8,8,0,0,1,1.64,2.71L73.64,208H86.36l3.82-10.69A8,8,0,0,1,97.71,192h68.58a8,8,0,0,1,7.53,5.31L177.64,208h12.72l18.11-50.69A8,8,0,0,1,216,152h8a8,8,0,0,0,8-8Z"/>',
+  invest: '<path d="M232,56v64L168,56Z" opacity="0.2"/><path d="M232,48H168a8,8,0,0,0-5.66,13.66L188.69,88,136,140.69l-34.34-34.35a8,8,0,0,0-11.32,0l-72,72a8,8,0,0,0,11.32,11.32L96,123.31l34.34,34.35a8,8,0,0,0,11.32,0L200,99.31l26.34,26.35A8,8,0,0,0,240,120V56A8,8,0,0,0,232,48Zm-8,52.69L187.31,64H224Z"/>',
+  insurance: '<path d="M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z" opacity="0.2"/><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/>',
+  business: '<path d="M224,96v16a32,32,0,0,1-64,0V96H96v16a32,32,0,0,1-64,0V96L46.34,45.8A8,8,0,0,1,54,40H202a8,8,0,0,1,7.69,5.8Z" opacity="0.2"/><path d="M231.69,93.81,217.35,43.6A16.07,16.07,0,0,0,202,32H54A16.07,16.07,0,0,0,38.65,43.6L24.31,93.81A7.94,7.94,0,0,0,24,96v16a40,40,0,0,0,16,32v72a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V144a40,40,0,0,0,16-32V96A7.94,7.94,0,0,0,231.69,93.81ZM54,48H202l11.42,40H42.61Zm98,56v8a24,24,0,0,1-48,0v-8ZM51.06,132.2A24,24,0,0,1,40,112v-8H88v8a24,24,0,0,1-35.12,21.26A7.88,7.88,0,0,0,51.06,132.2ZM200,208H56V151.2a40.57,40.57,0,0,0,8,.8,40,40,0,0,0,32-16,40,40,0,0,0,64,0,40,40,0,0,0,32,16,40.57,40.57,0,0,0,8-.8Zm16-96a24,24,0,0,1-11.07,20.2,8.08,8.08,0,0,0-1.8,1.05A24,24,0,0,1,168,112v-8h48Z"/>',
+  job: '<path d="M224,118.31V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V118.31h0A191.14,191.14,0,0,0,128,144,191.08,191.08,0,0,0,224,118.31Z" opacity="0.2"/><path d="M104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112ZM232,72V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V72A16,16,0,0,1,40,56H80V48a24,24,0,0,1,24-24h48a24,24,0,0,1,24,24v8h40A16,16,0,0,1,232,72ZM96,56h64V48a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8ZM40,72v41.62A184.07,184.07,0,0,0,128,136a184,184,0,0,0,88-22.39V72ZM216,200V131.63A200.25,200.25,0,0,1,128,152a200.19,200.19,0,0,1-88-20.36V200H216Z"/>',
+  etc: '<path d="M208,88H152V32Z" opacity="0.2"/><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/>',
+};
+
+function phosphorIcon(key, size) {
+  const inner = PHOSPHOR_ICONS[key] || PHOSPHOR_ICONS.etc;
+  const px = size || 40;
+  return `<svg class="phosphor-icon" width="${px}" height="${px}" viewBox="0 0 256 256" fill="currentColor">${inner}</svg>`;
+}
+
 // 정책 주제(topics)에 따라 아이콘 히어로에 넣을 아이콘만 바뀐다 — "고정 디자인 시스템 +
 // 가변 시각 콘텐츠" 구조: 카드 레이아웃/색은 card_type이 정하고, 아이콘만 주제가 정한다.
 const TOPIC_ICON = {
@@ -120,9 +149,10 @@ const TOPIC_ICON = {
   "기타": "document",
 };
 
-// My Feed 카드 배경 이미지 — scripts/generate_topic_icons.py로 만들려던 자리인데
-// Gemini 이미지 생성 모델은 무료 티어 할당량이 0이라(2026-09-26 확인), 대신
-// Microsoft Fluent Emoji 3D(MIT 라이선스, 무료)를 내려받아 assets/icons/에 넣었다.
+// My Feed 카드 아이콘 — 주제(topics[0])별로 PHOSPHOR_ICONS의 어느 키를 쓸지 정한다.
+// 예전엔 Fluent Emoji 3D PNG를 썼는데(에셋은 assets/icons/에 남아있지만 더 안 쓴다),
+// Story View 아이콘과 톤이 안 맞고 기사 내용과 무관하게 항상 똑같아 보인다는 지적이
+// 있어서 Phosphor Icons(정적 SVG, 인라인)로 교체했다 (2026-09-27).
 const TOPIC_ICON_SLUG = {
   "대출": "loan",
   "주거·전세": "housing",
@@ -134,59 +164,40 @@ const TOPIC_ICON_SLUG = {
   "기타": "etc",
 };
 
-// 레퍼런스(ref.png)의 4가지 파스텔 톤 카드를 재현한 색 팔레트. 정책 주제에 따라
-// 하나를 고른다 — card_type(Story View)과 마찬가지로 "고정 팔레트 + 가변 선택".
-const FEED_THEMES = {
-  blue: { bg: "linear-gradient(160deg, #eaf2fb 0%, #dbe9f8 100%)", pillBg: "#dbeafe", pillText: "#1e3a8a", hl: "#1e3a8a" },
-  green: { bg: "linear-gradient(160deg, #eafaf0 0%, #ddf3e4 100%)", pillBg: "#d1fae5", pillText: "#047857", hl: "#059669" },
-  purple: { bg: "linear-gradient(160deg, #f3f0fb 0%, #ece6f8 100%)", pillBg: "#ede9fe", pillText: "#6d28d9", hl: "#7c3aed" },
-  orange: { bg: "linear-gradient(160deg, #fff7ec 0%, #ffedd5 100%)", pillBg: "#ffedd5", pillText: "#c2410c", hl: "#ea580c" },
-};
-const TOPIC_THEME = {
-  "저축·자산형성": "blue",
-  "취업·채용": "blue",
-  "주거·전세": "green",
-  "대출": "green",
-  "보험": "purple",
-  "기타": "purple",
-  "투자·주식": "orange",
-  "창업·사업자금": "orange",
-};
-
-function pickFeedTheme(match) {
-  return FEED_THEMES[TOPIC_THEME[match.topics[0]] || "blue"];
-}
-
-// 제목 안에서 주제 키워드를 찾아 테마 색으로 강조한다 (레퍼런스처럼 "대출 제도"만
-// 파랗게 되는 효과). 못 찾으면 그냥 평문으로 보여준다 — 억지로 아무 단어나 감싸지 않는다.
-function highlightKeyword(text, keyword, color) {
+// 제목 안에서 화면에 실제로 보이는 첫 해시태그를 찾아 브랜드 색으로 강조한다. 예전엔
+// topics[0]을 썼는데, topics 배열 순서는 분류 프롬프트가 정하지 않아 사실상 무작위였고
+// 그 값이 화면에 보이지도 않았다 — 이제 실제로 보이는 태그와 강조색을 맞춘다
+// (2026-09-27). 못 찾으면 그냥 평문으로 보여준다.
+function highlightKeyword(text, keyword) {
   if (!keyword || !text.includes(keyword)) return text;
-  return text.replace(keyword, `<span style="color:${color}">${keyword}</span>`);
+  return text.replace(keyword, `<span class="hl">${keyword}</span>`);
 }
 
-// 지금은 app/feed_card_generator.py가 만든 티저 문구(Gemini 생성)가 아직 없을 수 있어서
-// (할당량 문제로 아직 한 번도 안 돌렸다), 있으면 그걸 쓰고 없으면 기존 2/3계층 필드로
-// 대체 표시한다. personal_relevance 값 자체는 노출하지 않는다.
+// app/feed_card_generator.py가 만든 티저 문구(Gemini 생성)가 있으면 그걸 쓰고, 없으면
+// (아직 생성 전인 새 기사) 기존 2/3계층 필드로 대체 표시한다. personal_relevance 값
+// 자체는 노출하지 않는다.
 function buildFeedCard(match, profile) {
-  const theme = pickFeedTheme(match);
   const overlap = profile ? match.topics.filter((t) => profile.interests?.includes(t)) : [];
   const isDirect = match.personal_relevance === "direct";
 
   const personalizedSignal =
     match.feed_personalized_signal || (isDirect && overlap.length > 0 ? "나에게 관련 있어요" : null);
 
+  const tags = (match.feed_tags.length ? match.feed_tags : match.topics.slice(0, 2)).slice(0, 2);
   const rawTitle = match.feed_title || match.one_line_summary;
-  const keyword = match.topics[0];
-  const title = highlightKeyword(rawTitle, keyword, theme.hl);
+  const title = highlightKeyword(rawTitle, tags[0]);
 
   // summary_easy는 3~5문장짜리 긴 설명이라 폴백으로 쓰면 목록 카드가 줄글처럼 보인다.
   // one_line_summary(2계층에서 이미 한 문장으로 요약된 필드)로 폴백해야 짧게 유지된다.
   const personalizedLine = match.feed_personalized_line || match.one_line_summary || "";
 
-  const tags = (match.feed_tags.length ? match.feed_tags : match.topics.slice(0, 2)).slice(0, 2);
-  const iconSlug = TOPIC_ICON_SLUG[keyword] || "etc";
+  const iconSlug = TOPIC_ICON_SLUG[match.topics[0]] || "etc";
+  // 카드를 열면 스토리 카드가 몇 장인지 미리 보여준다 — 실제 카드가 아직 없으면(신규
+  // 기사) 합성 경로(buildStoryCards)가 만들 카드 수를 그대로 계산한다. 이 함수는
+  // openCards()도 똑같이 쓰는 함수라 두 곳의 숫자가 항상 일치한다.
+  const cardCount = match.story_cards.length || buildStoryCards(match, profile).length;
 
-  return { theme, personalizedSignal, title, personalizedLine, tags, iconSlug };
+  return { personalizedSignal, title, personalizedLine, tags, iconSlug, cardCount };
 }
 
 // "저축·자산형성" 처럼 받침 있는 단어 뒤엔 "과", 받침 없으면 "와" — 조사를 자동으로 고른다.
