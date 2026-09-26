@@ -231,16 +231,16 @@ articles_detail    3계층  상세        긴 LLM 1회, 일부만
 
 ## 9. 4주 범위 관리
 
-우선순위:
+우선순위 (2026-09-26 기준):
 
-1. RSS 수집 — 미착수
-2. Google Sheets 적재 — **목업 데이터 20건으로 구조 검증 완료** (실시간 RSS 연동은 미착수, [작업일지 003](docs/worklogs/003-mock-database.md))
-3. 정책 구조화 — 미착수 (목업 데이터는 수작업으로 미리 구조화해둠)
-4. 개인화 — 미착수
-5. 쉬운 설명 — 미착수
-6. 행동 단계 — 미착수
+1. RSS 수집 — **완료**. 금융위 RSS를 매일 자동 수집, Vercel Cron으로 배포됨 ([작업일지 008](docs/worklogs/008-rss-collection-and-triage.md))
+2. Google Sheets 적재 — **완료**. 목업 데이터는 삭제하고 실제 RSS+Gemini 결과만 적재 중 (008)
+3. 정책 구조화 — **완료**. 1계층(원본)~3계층(상세) 전부 구현 ([009](docs/worklogs/009-detail-collection-and-story-view.md))
+4. 개인화 — **완료**. 매칭 API([007](docs/worklogs/007-matching-api-and-deploy.md)) + 카드 콘텐츠의 개인화 문구([010](docs/worklogs/010-feed-and-story-card-generation.md))
+5. 쉬운 설명 — **완료**. `summary_easy` 필드 (009)
+6. 행동 단계 — **부분 완료**. 신청방법/일정은 있으나("action_timing" 카드) 여러 단계로 쪼갠 체크리스트 형태는 아님
 7. 변경 감지 — 미착수
-8. 최소 UI(카드 피드) — **첫 화면(사용자 프로필 입력 폼) 완료**, 카드 피드 화면은 미착수 ([작업일지 004](docs/worklogs/004-landing-page.md))
+8. 최소 UI(카드 피드) — **완료**. 프로필 입력 폼(004) + My Feed 목록 + Story View 카드뉴스(스와이프/탭) (009, 010)
 
 ~~이메일 알림~~ — **제외됨** (2026-09-06). 알림 서비스는 만들지 않기로 했다. 이메일은 사용자
 식별자로만 남는다 (7절 참고).

@@ -1,18 +1,20 @@
 /* Pico는 쓰지 않는다: 이 화면은 카드 레이아웃이 핵심이라 태그 기본 스타일보다
    직접 만든 카드 컴포넌트가 더 잘 맞는다.
-   색 토큰은 index.html의 --pico-primary(#3a6ea5)와 맞춰서 두 화면이 같은 브랜드로
-   보이게 한다 (2026-09-26 카드뉴스 레퍼런스에 맞춰 옐로 포인트를 걷어내고 블루로 통일). */
+   색 토큰은 index.html과 정확히 같은 값을 쓴다 (2026-09-26, ui-ux-pro-max 스킬의
+   "Banking/Traditional Finance" 팔레트 참고 — 신뢰감 있는 네이비 + 밝은 배경).
+   공유 스타일시트 없이 두 파일에 같은 값을 각각 적어두는 방식이라, 값을 바꿀 땐
+   index.html의 :root도 같이 바꿔야 한다. */
 :root {
-  --brand: #3a6ea5;
-  --brand-dark: #2c4a68;
-  --ink: #16213e;
-  --muted: #6b7280;
-  --bg-app: #eef4fb;
+  --brand: #1e3a8a;
+  --brand-dark: #172554;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --bg-app: #f8fafc;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
   background: var(--bg-app);
   color: var(--ink);
 }
@@ -30,12 +32,12 @@ main {
   align-items: center;
   gap: 0.4rem;
 }
+/* 2026-09-26: 단색 점 대신 실제 브랜드 아이콘(assets/icons/brand.png) 이미지를 쓴다. */
 .brand-mark {
   width: 20px;
   height: 20px;
-  border-radius: 50%;
-  background: var(--brand);
-  box-shadow: inset 0 0 0 3px #ffffff;
+  border-radius: 6px;
+  object-fit: contain;
   flex: none;
 }
 .brand-name {
@@ -44,15 +46,25 @@ main {
   color: var(--brand-dark);
 }
 header.app-header {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+/* My Feed 페이지 헤더만 다른 곳(카드뉴스 상단바 등)보다 살짝 크게 — 첫 화면에서
+   브랜드가 더 잘 보이도록 (2026-09-26). */
+header.app-header .brand-mark {
+  width: 30px;
+  height: 30px;
+}
+header.app-header .brand-name {
+  font-size: 1.3rem;
 }
 header.app-header .brand {
-  margin-bottom: 0.35rem;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
 }
 header.app-header p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 /* 상단 필터 탭. */
@@ -335,6 +347,35 @@ header.app-header p {
   margin: 0 0 0.6rem;
 }
 .story-headline .hl, .story-lead .hl { color: var(--brand); font-weight: 700; }
+
+/* 편집 디자인 요소 — 카드 목적에 따라 레이아웃을 다르게 쓴다(2026-09-26).
+   change: 번호를 큰 배지로, impact: 강조 수치를 큰 스탯으로, schedule: 테두리 패널로. */
+.change-number {
+  display: block;
+  font-size: 2.75rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--brand);
+  margin-bottom: 0.4rem;
+  font-variant-numeric: normal;
+}
+.stat-display {
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: var(--brand);
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+.info-panel {
+  border-left: 3px solid var(--brand);
+  background: #ffffff;
+  border-radius: 0 14px 14px 0;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(15, 35, 60, 0.05);
+}
 .story-lead {
   font-size: 0.95rem;
   line-height: 1.6;
@@ -491,4 +532,230 @@ header.app-header p {
   margin-top: 0.85rem;
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+/* 용어풀이 — 클릭 없이 카드 안에 바로 보여준다(2026-09-26, 바텀시트 폐기). 본문보다
+   눈에 덜 띄게 작은 보조 박스로 둔다. */
+.term-box {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #e5e9f0;
+}
+.term-entry + .term-entry {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #e5e9f0;
+}
+.term-entry .term-word {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 0.2rem;
+}
+.term-entry .term-word svg { width: 12px; height: 12px; }
+.term-entry .term-desc {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------
+   카드 다이어그램 컴포넌트 (2026-09-26, Figma 레퍼런스 반영) — 카드 타입별로
+   본문을 감싸는 재사용 블록들. 아래로 갈수록 카드 순서(hook→intro→change→
+   impact→schedule)와 대응한다.
+   ------------------------------------------------------------------- */
+
+/* hook 카드 하단 해시태그. */
+.hashtag-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.hashtag {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* intro/impact 카드에서 공용으로 쓰는 흰 카드 리스트(항목 나열). */
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 4px 14px rgba(15, 35, 60, 0.05);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.item-row .item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* change 카드: "기존 → 변경" 비교 박스. */
+.compare-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.compare-box {
+  width: 100%;
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+}
+.compare-box p {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.compare-box.before {
+  background: #f1f3f5;
+  color: var(--muted);
+}
+.compare-box.after {
+  background: #dbeafe;
+  color: var(--brand-dark);
+}
+.compare-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
+}
+.compare-tag.before {
+  background: #e2e8f0;
+  color: #64748b;
+}
+.compare-tag.after {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+.compare-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 30px;
+  margin-top: 0.7rem;
+}
+.compare-bars span {
+  display: block;
+  width: 7px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.5;
+}
+.compare-arrow {
+  color: var(--muted);
+}
+
+/* impact 카드: 번호 리스트 + 노란 팁 박스. */
+.numbered-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 4px 14px rgba(15, 35, 60, 0.05);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.numbered-row .num-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #eaf2fb;
+  color: var(--brand);
+  font-weight: 800;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.tip-box {
+  background: #fffbeb;
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  margin-top: 0.75rem;
+}
+.tip-box .tip-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #92400e;
+  margin: 0 0 0.4rem;
+}
+.tip-box .tip-text {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* schedule 카드: 세로 타임라인. */
+.timeline {
+  margin-top: 1.25rem;
+  padding-left: 0.2rem;
+}
+.timeline-item {
+  position: relative;
+  padding-left: 1.4rem;
+  padding-bottom: 1.25rem;
+  border-left: 2px solid #dbeafe;
+}
+.timeline-item:last-child {
+  border-color: transparent;
+  padding-bottom: 0;
+}
+.timeline-dot {
+  position: absolute;
+  left: -6px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.timeline-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.2rem;
+}
+.timeline-value {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ink);
+  margin: 0;
 }

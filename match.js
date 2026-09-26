@@ -94,9 +94,11 @@ const ICON_SVGS = {
   gift: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><path d="M3 12h18"/><path d="M7.5 8a2.5 2.5 0 010-5C9.5 3 12 5 12 8"/><path d="M16.5 8a2.5 2.5 0 000-5C14.5 3 12 5 12 8"/>',
   check: '<polyline points="4 12 9 17 20 6"/>',
   lightbulb: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0012 2z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   more: '<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
   sparkle: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/>',
   arrowRight: '<line x1="4" y1="12" x2="20" y2="12"/><polyline points="14 6 20 12 14 18"/>',
+  arrowDown: '<line x1="12" y1="4" x2="12" y2="20"/><polyline points="6 14 12 20 18 14"/>',
 };
 
 function iconMarkup(key, size) {
@@ -139,7 +141,7 @@ const TOPIC_ICON_SLUG = {
 // 레퍼런스(ref.png)의 4가지 파스텔 톤 카드를 재현한 색 팔레트. 정책 주제에 따라
 // 하나를 고른다 — card_type(Story View)과 마찬가지로 "고정 팔레트 + 가변 선택".
 const FEED_THEMES = {
-  blue: { bg: "linear-gradient(160deg, #eaf2fb 0%, #dbe9f8 100%)", pillBg: "#dbeafe", pillText: "#1d4ed8", hl: "#2563eb" },
+  blue: { bg: "linear-gradient(160deg, #eaf2fb 0%, #dbe9f8 100%)", pillBg: "#dbeafe", pillText: "#1e3a8a", hl: "#1e3a8a" },
   green: { bg: "linear-gradient(160deg, #eafaf0 0%, #ddf3e4 100%)", pillBg: "#d1fae5", pillText: "#047857", hl: "#059669" },
   purple: { bg: "linear-gradient(160deg, #f3f0fb 0%, #ece6f8 100%)", pillBg: "#ede9fe", pillText: "#6d28d9", hl: "#7c3aed" },
   orange: { bg: "linear-gradient(160deg, #fff7ec 0%, #ffedd5 100%)", pillBg: "#ffedd5", pillText: "#c2410c", hl: "#ea580c" },
@@ -181,7 +183,9 @@ function buildFeedCard(match, profile) {
   const keyword = match.topics[0];
   const title = highlightKeyword(rawTitle, keyword, theme.hl);
 
-  const personalizedLine = match.feed_personalized_line || match.summary_easy || "";
+  // summary_easy는 3~5문장짜리 긴 설명이라 폴백으로 쓰면 목록 카드가 줄글처럼 보인다.
+  // one_line_summary(2계층에서 이미 한 문장으로 요약된 필드)로 폴백해야 짧게 유지된다.
+  const personalizedLine = match.feed_personalized_line || match.one_line_summary || "";
 
   const tags = (match.feed_tags.length ? match.feed_tags : match.topics.slice(0, 2)).slice(0, 2);
   const iconSlug = TOPIC_ICON_SLUG[keyword] || "etc";
@@ -215,6 +219,175 @@ function infoRow(icon, label, value) {
       </div>
     </div>
   `;
+}
+
+// --- 카드 다이어그램 헬퍼 (2026-09-26, Figma 레퍼런스 반영) ---
+// 원문에 없는 사실은 지어내지 않는다 — 이미 있는 필드(target/benefit/key_dates 등)를
+// 다른 모양(리스트/타임라인/비교박스)으로 배치만 바꾼다.
+
+// "." 기준으로 첫 문장만 뽑는다. summary_easy는 3~5문장이라, 카드 리드 문구로 쓰기엔
+// 첫 문장 정도가 적당하다.
+function firstSentence(text) {
+  if (!text) return "";
+  const idx = text.indexOf(".");
+  return idx === -1 ? text : text.slice(0, idx + 1);
+}
+
+// "저축, 대출, 보증 지원" 같은 문장을 쉼표/가운뎃점/슬래시/"및" 기준으로 쪼갠다.
+// 실제로 여러 항목일 때만(길이 > 1) 리스트로 쓰고, 한 덩어리 문장이면 빈 배열을
+// 반환해서 호출부가 기존 방식(요약 박스)으로 대체하게 한다.
+function splitToItems(text, max = 3) {
+  if (!text) return [];
+  const parts = text
+    .split(/[,、·/]|\s및\s|\s그리고\s/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length > 1 ? parts.slice(0, max) : [];
+}
+
+// intro 카드: 혜택 문구가 여러 항목이면 아이콘 리스트로, 아니면 기존 요약 박스로.
+function buildIntroBody(match) {
+  const iconHero = `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>`;
+  const items = match.benefit ? splitToItems(match.benefit) : [];
+
+  if (items.length > 0) {
+    const rows = items
+      .map(
+        (t) => `
+          <div class="item-row">
+            <span class="item-icon">${iconMarkup("check", 16)}</span>
+            <span>${t}</span>
+          </div>
+        `
+      )
+      .join("");
+    return { lead: firstSentence(match.summary_easy), bodyHtml: `${iconHero}<div class="item-list">${rows}</div>` };
+  }
+
+  return {
+    lead: firstSentence(match.summary_easy),
+    bodyHtml: `
+      ${iconHero}
+      <div class="summary-box">
+        <p class="summary-label">${iconMarkup("document", 14)}한 줄 요약</p>
+        <p class="summary-text">${match.summary_easy || "아직 쉬운 설명이 준비되지 않았어요."}</p>
+      </div>
+    `,
+  };
+}
+
+// change 카드: "기존 -> 변경" Before/After 비교 박스. before는 doc_type별 일반적인
+// 전환 문구(구체적 수치·조건을 지어내지 않는 범용 표현)이고, after는 실제 원문 요약이다.
+const BEFORE_LABEL_BY_DOC_TYPE = {
+  support_program: "이전에는 없던 지원이에요",
+  rule_change: "지금까지 적용되던 제도예요",
+  plan: "아직 계획 단계였어요",
+  info: "이런 소식이 알려지기 전이에요",
+  admin: "기존 행정 절차가 적용되고 있었어요",
+};
+function buildChangeDiagram(match) {
+  const before = BEFORE_LABEL_BY_DOC_TYPE[match.doc_type] || "기존에는 달랐어요";
+  const after = match.one_line_summary || "";
+  const bars = (heights) => heights.map((h) => `<span style="height:${h}px"></span>`).join("");
+
+  return `
+    <div class="compare-stack">
+      <div class="compare-box before">
+        <span class="compare-tag before">기존</span>
+        <p>${before}</p>
+        <div class="compare-bars">${bars([8, 12, 10])}</div>
+      </div>
+      <span class="compare-arrow">${iconMarkup("arrowDown", 20)}</span>
+      <div class="compare-box after">
+        <span class="compare-tag after">변경</span>
+        <p>${after}</p>
+        <div class="compare-bars">${bars([14, 20, 26])}</div>
+      </div>
+    </div>
+  `;
+}
+
+// impact 카드: 대상이 여러 항목이면 01/02/03 번호 리스트로, 혜택은 노란 팁 박스로.
+function buildImpactDiagram(match) {
+  const targets = match.target ? splitToItems(match.target) : [];
+  let rowsHtml = "";
+  if (targets.length > 0) {
+    rowsHtml = `<div class="item-list">${targets
+      .map(
+        (t, i) => `
+          <div class="numbered-row">
+            <span class="num-badge">0${i + 1}</span>
+            <span>${t}</span>
+          </div>
+        `
+      )
+      .join("")}</div>`;
+  } else if (match.target) {
+    rowsHtml = `<div class="info-box">${infoRow("user", "지원 대상", match.target)}</div>`;
+  }
+
+  const tip = match.benefit
+    ? `
+      <div class="tip-box">
+        <p class="tip-label">${iconMarkup("lightbulb", 14)}핵심 혜택</p>
+        <p class="tip-text">${match.benefit}</p>
+      </div>
+    `
+    : "";
+
+  return `${rowsHtml}${tip}`;
+}
+
+// schedule 카드: 아이콘 행 대신 세로 타임라인. 있는 필드만 순서대로 늘어놓는다.
+function buildScheduleDiagram(match) {
+  const items = [];
+  const keyDates = match.key_dates ?? [];
+  if (keyDates.length > 0) items.push({ label: "시행일", value: keyDates.join(" · ") });
+  if (match.how_to_apply) items.push({ label: "신청 방법", value: match.how_to_apply });
+  if (match.target) items.push({ label: "신청 대상", value: match.target });
+  if (match.deadline) items.push({ label: "마감", value: match.deadline });
+
+  const bodyHtml = items.length
+    ? `<div class="timeline">${items
+        .map(
+          (it) => `
+            <div class="timeline-item">
+              <span class="timeline-dot"></span>
+              <p class="timeline-label">${it.label}</p>
+              <p class="timeline-value">${it.value}</p>
+            </div>
+          `
+        )
+        .join("")}</div>`
+    : "";
+
+  return { bodyHtml, ctaLink: match.source_url, ctaLabel: "자세한 내용 보러가기" };
+}
+
+// hook 카드 하단 해시태그 줄 (레퍼런스의 #청년금융 #자산형성 처럼).
+function buildHashtagRow(match) {
+  const tags = (match.feed_tags?.length ? match.feed_tags : match.topics).slice(0, 2);
+  return `<div class="hashtag-row">${tags.map((t) => `<span class="hashtag">#${t}</span>`).join("")}</div>`;
+}
+
+// buildStoryCards(합성)/buildCardsFromReal(실제 LLM 카드) 양쪽 모두, 카드 타입별로
+// 같은 다이어그램을 입힌다 — 카드 문구 출처가 달라도 시각 레이아웃은 하나로 통일된다.
+function applyDiagrams(cards, match) {
+  for (const card of cards) {
+    if (card.type === "hook") {
+      card.bodyHtml = (card.bodyHtml || "") + buildHashtagRow(match);
+    } else if (card.type === "change") {
+      card.bodyHtml = buildChangeDiagram(match);
+    } else if (card.type === "impact") {
+      card.bodyHtml = buildImpactDiagram(match);
+    } else if (card.type === "schedule") {
+      const sched = buildScheduleDiagram(match);
+      card.bodyHtml = sched.bodyHtml;
+      card.ctaLink = sched.ctaLink;
+      card.ctaLabel = sched.ctaLabel;
+    }
+  }
+  return cards;
 }
 
 // 지금은 app/detail_collector.py가 만든 카드 문구(Gemini 생성)가 없어서,
@@ -265,18 +438,14 @@ function buildStoryCards(match, profile) {
   }
 
   // 2. 정책 소개
+  const introBody = buildIntroBody(match);
   cards.push({
     type: "intro",
     badgeIcon: "document",
     badgeLabel: "정책 소개",
     headline: match.one_line_summary,
-    bodyHtml: `
-      <div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>
-      <div class="summary-box">
-        <p class="summary-label">${iconMarkup("document", 14)}한 줄 요약</p>
-        <p class="summary-text">${match.summary_easy || "아직 쉬운 설명이 준비되지 않았어요."}</p>
-      </div>
-    `,
+    lead: introBody.lead,
+    bodyHtml: introBody.bodyHtml,
   });
 
   // 3. 주요 변화 — 개인화 여부와 무관하게, 정책 자체가 무엇을 바꾸는지
@@ -319,7 +488,7 @@ function buildStoryCards(match, profile) {
   }
 
   cards.push(buildSourceCard(match));
-  return cards;
+  return applyDiagrams(cards, match);
 }
 
 // 출처 카드는 실제 데이터든 목업이든 항상 코드가 붙인다 — LLM이 원문 링크를
@@ -336,14 +505,14 @@ function buildSourceCard(match) {
 }
 
 // app/card_generator.py가 만든 실제 카드(article_id당 1번 캐싱)를 화면 카드 형태로
-// 바꾼다. 실제 타입(hook/policy/key_change/personal_impact/action_timing)을 지금 쓰는
+// 바꾼다. 실제 타입(hook/policy/change/impact/timing)을 지금 쓰는
 // CSS 카드 타입(hook/intro/change/impact/schedule)에 매핑한다.
 const REAL_CARD_MAP = {
   hook: { cssType: "hook", icon: "target", badge: "당신에게 관련된 정책이에요" },
   policy: { cssType: "intro", icon: "document", badge: "정책 소개" },
-  key_change: { cssType: "change", icon: "refreshCw", badge: "주요 변화" },
-  personal_impact: { cssType: "impact", icon: "trendingUp", badge: "개인적 영향" },
-  action_timing: { cssType: "schedule", icon: "calendar", badge: "신청 방법과 주요 일정" },
+  change: { cssType: "change", icon: "refreshCw", badge: "주요 변화" },
+  impact: { cssType: "impact", icon: "trendingUp", badge: "개인적 영향" },
+  timing: { cssType: "schedule", icon: "calendar", badge: "신청 방법과 주요 일정" },
 };
 
 // highlight(강조 구절)가 headline 안에 있으면 색을 입히고, 없으면 그냥 둔다.
@@ -352,24 +521,62 @@ function wrapHighlight(text, highlight) {
   return text.replace(highlight, `<span class="hl">${highlight}</span>`);
 }
 
+// "달라지는 점 ① 1차 가입자 제한"처럼 headline 안에 동그라미 번호(①②③...)가 있으면
+// 그 앞부분("달라지는 점")은 버리고, 번호를 큰 배지로 뽑아내 편집 디자인 느낌을 낸다.
+// 없으면 null — 그냥 평범한 headline으로 보여준다.
+const CIRCLED_DIGITS = "①②③④⑤⑥⑦⑧⑨⑩";
+function splitCircledNumber(headline) {
+  for (const ch of CIRCLED_DIGITS) {
+    const idx = headline.indexOf(ch);
+    if (idx === -1) continue;
+    return { number: ch, rest: headline.slice(idx + 1).trim() };
+  }
+  return null;
+}
+
 function buildCardsFromReal(match) {
   const cards = match.story_cards.map((item) => {
     const cardMap = REAL_CARD_MAP[item.type] || REAL_CARD_MAP.policy;
     // highlight는 headline 또는 copy 어느 쪽에 들어있을지 몰라서 둘 다 시도한다.
-    const headline = wrapHighlight(item.headline, item.highlight);
+    let headline = wrapHighlight(item.headline, item.highlight);
     const lead = headline === item.headline ? wrapHighlight(item.copy, item.highlight) : item.copy;
+    // 이 카드 번호에 연결된 용어풀이만 골라낸다 (app/card_generator.py의 term_explanations).
+    const terms = (match.term_explanations ?? []).filter((t) => t.card_number === item.card_number);
+
+    let bodyHtml = "";
+    let numberBadge = "";
+    if (cardMap.cssType === "intro") {
+      // "정책 소개" 카드에는 주제 아이콘 장식을 넣는다.
+      bodyHtml = `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>`;
+    } else if (cardMap.cssType === "change") {
+      // "주요 변화" 카드는 편집 매거진처럼 번호를 큰 배지로 분리한다.
+      const split = splitCircledNumber(item.headline);
+      if (split) {
+        numberBadge = `<span class="change-number">${split.number}</span>`;
+        headline = wrapHighlight(split.rest, item.highlight);
+      }
+    } else if (cardMap.cssType === "impact" && item.highlight && /[0-9%]/.test(item.highlight)) {
+      // "개인적 영향" 카드는 숫자·비율 강조 문구가 있으면 큰 스탯으로 별도 표시한다.
+      bodyHtml = `<p class="stat-display">${item.highlight}</p>`;
+    } else if (cardMap.cssType === "schedule") {
+      // "일정/신청방법" 카드는 본문을 테두리 있는 정보 패널로 감싸 구분한다.
+      bodyHtml = `<div class="info-panel">${lead}</div>`;
+    }
+
     return {
       type: cardMap.cssType,
       badgeIcon: cardMap.icon,
       badgeLabel: cardMap.badge,
+      numberBadge,
       headline,
-      lead,
-      // "정책 소개" 카드에만, 목업 때와 마찬가지로 주제 아이콘 장식을 넣는다.
-      bodyHtml: cardMap.cssType === "intro" ? `<div class="icon-hero">${iconMarkup(pickTopicIcon(match), 42)}</div>` : "",
+      // schedule은 이미 bodyHtml(info-panel) 안에 본문을 넣었으니 lead를 중복 출력하지 않는다.
+      lead: cardMap.cssType === "schedule" ? "" : lead,
+      bodyHtml,
+      terms,
     };
   });
   cards.push(buildSourceCard(match));
-  return cards;
+  return applyDiagrams(cards, match);
 }
 
 const cardsOverlay = document.getElementById("cardsOverlay");
@@ -388,14 +595,33 @@ function openCards(match) {
 
   cardsTrack.innerHTML = cards
     .map(
-      (card) => `
+      (card, i) => `
         <div class="story-card ${card.type}">
           <span class="story-badge">${iconMarkup(card.badgeIcon, 14)}${card.badgeLabel}</span>
+          ${card.numberBadge || ""}
           <p class="story-headline">${card.headline}</p>
           ${card.lead ? `<p class="story-lead">${card.lead}</p>` : ""}
           ${card.bodyHtml || ""}
-          ${card.ctaLink ? `<a class="cta-button" href="${card.ctaLink}" target="_blank" rel="noopener">${iconMarkup("externalLink", 18)}원문 보러가기</a>` : ""}
+          ${card.ctaLink ? `<a class="cta-button" href="${card.ctaLink}" target="_blank" rel="noopener">${iconMarkup("externalLink", 18)}${card.ctaLabel || "원문 보러가기"}</a>` : ""}
           ${card.caption ? `<p class="source-caption">${card.caption}</p>` : ""}
+          ${
+            card.terms && card.terms.length
+              ? `
+                <div class="term-box">
+                  ${card.terms
+                    .map(
+                      (t) => `
+                        <div class="term-entry">
+                          <p class="term-word">${iconMarkup("search", 13)}${t.term}</p>
+                          <p class="term-desc">${t.explanation}</p>
+                        </div>
+                      `
+                    )
+                    .join("")}
+                </div>
+              `
+              : ""
+          }
         </div>
       `
     )

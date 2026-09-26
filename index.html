@@ -1,38 +1,50 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Polistagram</title>
+  <link rel="icon" type="image/png" href="assets/icons/brand.png" />
 
   <!-- Pico.css: 클래스 없이도 기본 태그(form, input, button...)를 깔끔하게 스타일링해주는 CDN CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
-  <!-- Noto Sans KR: 한글을 포함한 폰트. Pico 기본 폰트는 한글이 없어 브라우저가 알아서 다른 폰트로 대체하는데,
-       그러면 화면마다 한글 모양이 들쭉날쭉해질 수 있어 처음부터 한글 지원 폰트를 지정한다.
+  <!-- Pretendard: 한글 UI에 널리 쓰이는 깔끔한 산세리프 (2026-09-26, Noto Sans KR에서 교체 —
+       더 세련된 에디토리얼 톤을 위해). Google Fonts에 없어서 공식 CDN(jsdelivr)으로 받는다.
        Yellowtail: "Polistagram" 로고 글자에만 쓰는 필기체 폰트 (Instagram 옛 로고 느낌). -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Yellowtail&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yellowtail&display=swap" />
 
   <style>
     /* Pico.css는 --pico-* 변수로 색을 관리한다. 값을 새로 정의하면 전체 버튼/링크/포커스 색이 한 번에 바뀐다. */
     :root {
-      --pico-font-family: "Noto Sans KR", sans-serif;
-      /* 레퍼런스(옛 Instagram 로고)의 파란 톤을 메인 컬러로 사용.
+      --pico-font-family: "Pretendard", "Noto Sans KR", sans-serif;
+      /* match.html(styles.css)과 같은 색 토큰 — ui-ux-pro-max 스킬의 "Banking/
+         Traditional Finance" 팔레트를 참고해 정한 신뢰감 있는 네이비다
+         (2026-09-26, 기존 #3a6ea5 옐로/블루 임의 조합에서 두 화면 통일로 변경).
+         공유 스타일시트가 없어서 styles.css의 --brand/--brand-dark/--ink와
+         같은 값을 여기 각각 적어둔다 — 값을 바꿀 땐 둘 다 같이 바꿔야 한다.
          Pico v2는 버튼 배경(--pico-primary-background 등)이 --pico-primary와
          따로 노는 고정값이라, 관련 변수를 전부 같이 덮어써야 실제로 반영된다. */
-      --pico-primary: #3a6ea5;
-      --pico-primary-background: #3a6ea5;
-      --pico-primary-border: #3a6ea5;
-      --pico-primary-hover: #2c5480;
-      --pico-primary-hover-background: #2c5480;
-      --pico-primary-hover-border: #2c5480;
-      --pico-primary-focus: rgba(58, 110, 165, 0.25);
+      --pico-primary: #1e3a8a;
+      --pico-primary-background: #1e3a8a;
+      --pico-primary-border: #1e3a8a;
+      --pico-primary-hover: #172554;
+      --pico-primary-hover-background: #172554;
+      --pico-primary-hover-border: #172554;
+      --pico-primary-focus: rgba(30, 58, 138, 0.25);
       --pico-primary-inverse: #ffffff;
-      --pico-primary-underline: rgba(58, 110, 165, 0.5);
-      --pico-primary-hover-underline: #2c5480;
-      --pico-background-color: #ffffff;
+      --pico-primary-underline: rgba(30, 58, 138, 0.5);
+      --pico-primary-hover-underline: #172554;
+      /* 배경/글자색도 match.html(--bg-app/--ink/--muted)과 정확히 같은 값으로 맞춘다.
+         전에는 여기만 순백(#ffffff)이라 두 화면을 오갈 때 배경이 미묘하게 달라 보였다. */
+      --pico-background-color: #f8fafc;
       --pico-card-background-color: #ffffff;
+      --pico-color: #0f172a;
+      --pico-muted-color: #64748b;
+      --pico-h1-color: #0f172a;
+      --pico-h2-color: #0f172a;
     }
     /* 관심분야 체크박스는 메인 컬러와 통일한다. */
     input[type="checkbox"]:checked {
@@ -56,38 +68,54 @@
       max-width: 560px;
     }
 
-    /* 히어로: 화면 폭 전체를 파란 그라데이션으로 채우는 영역. <main class="container">
-       바깥(body 바로 아래)에 둬서 좌우 여백 없이 꽉 차게 만든다. */
+    /* 히어로: match.html과 같은 밝은 배경(#f8fafc) 위에 얹는다. <main class="container">
+       바깥(body 바로 아래)에 둬서 좌우 여백 없이 꽉 차게 만든다.
+       2026-09-26: 어두운 네이비 그라데이션 전체 배경을 걷어냈다 — 첫 화면이 어두운
+       블록이라 첫인상부터 match.html(흰 배경)과 완전히 달라 보였다. 이제 배경은
+       페이지 전체와 같은 톤이고, 브랜드 네이비는 로고 글자색으로만 남는다. */
     .hero {
-      background: linear-gradient(135deg, #4a80b3 0%, #2c4a68 100%);
-      color: #ffffff;
+      background: var(--pico-background-color);
+      color: var(--pico-color);
       text-align: center;
       padding: 4rem 1rem 5rem;
     }
+    /* 아이콘(위, 크게) -> "polistagram"(아래) 세로 배치. 참고 이미지(2026-09-26)에
+       맞춰 가로 배치에서 다시 세로 배치로 변경. */
+    .hero-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .hero-icon {
+      width: 128px;
+      height: 128px;
+      border-radius: 24px;
+      flex: none;
+    }
     .hero h1 {
-      /* Yellowtail은 필기체라 굵기가 이미 있어서 font-weight를 따로 안 줘도 된다. */
-      font-family: "Yellowtail", cursive;
-      font-size: clamp(2.5rem, 8vw, 4rem);
+      /* match.html의 .brand-name과 같은 폰트로 통일 — :root의 기본 산세리프
+         (Pretendard)를 그대로 물려받는다 (2026-09-26, 필기체 Yellowtail에서 변경).
+         아이콘을 크게 키운 만큼 타이틀은 더 줄여서 균형을 맞춘다. */
+      font-size: clamp(1.75rem, 5vw, 2.5rem);
+      font-weight: 800;
       margin-bottom: 0.75rem;
       line-height: 1.2;
+      color: var(--pico-primary);
     }
     .hero p {
       font-size: clamp(1rem, 2.5vw, 1.15rem);
-      color: rgba(255, 255, 255, 0.85);
+      color: var(--pico-muted-color);
       margin-bottom: 2rem;
     }
-    /* "시작하기" 버튼은 히어로의 파란 배경 위에서 도드라지도록 흰 배경 + 파란 글씨로 반전시킨다. */
+    /* "시작하기" 버튼은 이제 밝은 배경 위라, 다른 곳과 같은 네이비 버튼(Pico 기본 --primary)을
+       그대로 쓴다 — 흰 배경 반전 버튼은 어두운 히어로에서만 필요했다. */
     #start-btn {
       display: inline-block;
       width: auto;
-      background: #ffffff;
-      color: #2c4a68;
-      border: none;
       font-weight: 700;
       padding: 0.9rem 2.5rem;
-    }
-    #start-btn:hover {
-      background: #f1f5f9;
     }
 
     /* 프로필 폼 영역을 히어로와 겹치도록 위로 끌어올려서, 카드가 그라데이션 위에 살짝 걸쳐 보이게 한다. */
@@ -107,9 +135,15 @@
       max-height: 2000px;
       opacity: 1;
     }
-    /* 폼을 감싸는 카드. 배경/테두리는 Pico의 article 기본 스타일을 그대로 쓴다. */
+    /* 폼을 감싸는 카드. 페이지 배경(#f8fafc)과 카드 배경(#ffffff)의 색차가 거의 없어서
+       테두리+그림자만으로는 잘 안 보였다. match.html의 카드뉴스 스테이지(#cardsStage)와
+       같은 방식 — 옅은 블루→화이트 그라데이션 + 진한 그림자 — 로 확실히 분리한다
+       (2026-09-26). */
     #profile-card {
       margin-bottom: 0;
+      background: linear-gradient(180deg, #eef4fb 0%, #ffffff 60%);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
     }
     /* 입력 항목 사이 간격을 넓혀서 각 질문이 하나씩 구분되어 보이게 한다. */
     #profile-form > label {
@@ -132,12 +166,52 @@
     button[type="submit"] {
       margin-top: 2rem;
     }
+
+    /* 제출 후 보여줄 로딩 화면. 기본은 숨김(hidden 속성)이고, JS가 폼과 자리를
+       바꿔서 보여준다. */
+    #loading-state {
+      text-align: center;
+      padding: 2rem 0;
+    }
+    /* 원형 스피너: 테두리 대부분은 옅게, 한쪽만 브랜드 색으로 칠해서 회전시키면
+       "돌아가는 원"처럼 보인다. */
+    .spinner {
+      width: 2.5rem;
+      height: 2.5rem;
+      margin: 0 auto 1.25rem;
+      border: 3px solid #e2e8f0;
+      border-top-color: var(--pico-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #loading-state p {
+      color: var(--pico-color);
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
+  <script>
+    // 이미 프로필을 제출한 적 있는 사용자는 히어로/폼을 다시 볼 필요 없이 바로
+    // My Feed로 보낸다. 단, localhost(로컬 개발 중)는 제외 — 안 그러면 테스트 중에
+    // 저장한 프로필 때문에 index.html을 열 때마다 계속 match.html로 튕겨서
+    // 폼 화면 자체를 확인/수정하기 어려워진다. 화면이 보이기 전에 최대한 빨리
+    // 판단하려고 <body> 맨 앞, 다른 스크립트보다 먼저 둔다.
+    const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    if (!IS_LOCAL && localStorage.getItem("polistagram_profile")) {
+      location.replace("match.html");
+    }
+  </script>
+
   <!-- 히어로는 화면 폭 전체를 채워야 해서 .container 바깥(body 바로 아래)에 둔다. -->
   <header class="hero">
-    <h1>Polistagram</h1>
+    <div class="hero-brand">
+      <img class="hero-icon" src="assets/icons/brand.png" alt="" />
+      <h1>Polistagram</h1>
+    </div>
     <p>쏟아지는 금융정책, 나에게 필요한 것만 쉽게.</p>
     <button id="start-btn" type="button">시작하기</button>
   </header>
@@ -208,7 +282,14 @@
 
       <button type="submit">제출</button>
       <p id="submit-message" role="status" hidden></p>
+      <button type="button" id="reset-btn" class="secondary outline">프로필 초기화</button>
     </form>
+
+    <!-- 제출 성공 시 위 <form>은 JS가 hidden 처리하고, 이 영역을 대신 보여준다. -->
+    <div id="loading-state" hidden>
+      <div class="spinner"></div>
+      <p>회원님에게 맞는 정책을 찾고 있어요...</p>
+    </div>
     </article>
     </section>
   </main>
@@ -219,6 +300,7 @@
     const message = document.getElementById("submit-message");
     const startBtn = document.getElementById("start-btn");
     const profileSection = document.getElementById("profile-section");
+    const resetBtn = document.getElementById("reset-btn");
 
     // "시작하기" 버튼을 누르면 접혀 있던 프로필 폼을 펼친다.
     startBtn.addEventListener("click", () => {
@@ -252,9 +334,25 @@
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
 
+      // 폼을 숨기고 로딩 화면(스피너 + 문구)을 보여준 다음, 잠깐 뒤에 match.html로
+      // 자동 이동한다. setTimeout의 두 번째 숫자(밀리초)만큼 기다린 뒤 콜백을 실행한다 —
+      // 실제로는 오래 걸리는 작업이 없지만, 너무 빨리 넘어가면 "찾고 있다"는
+      // 느낌이 안 들어서 일부러 짧게 대기시킨다.
+      form.hidden = true;
+      document.getElementById("loading-state").hidden = false;
+      setTimeout(() => {
+        location.href = "match.html";
+      }, 1200);
+    });
+
+    // localStorage는 브라우저(기기)마다 따로 저장된다 — 다른 사람의 브라우저에는
+    // 영향이 없다. 그래도 테스트하다 저장해둔 프로필을 지우고 싶을 때를 위한 버튼.
+    resetBtn.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      form.reset();
       message.hidden = false;
       message.style.color = "green";
-      message.innerHTML = '✓ 프로필이 저장됐어요. <a href="match.html">맞춤 정책 보러가기</a>';
+      message.textContent = "✓ 저장된 프로필을 지웠어요.";
     });
 
     // 이전에 저장해둔 프로필이 있으면 폼에 다시 채워둔다. 단, 첫 화면은 항상

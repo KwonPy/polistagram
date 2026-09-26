@@ -85,6 +85,12 @@ def load_articles() -> list[dict]:
             # Story View 카드뉴스 본문 (app/card_generator.py). 아직 생성 전이면 빈 배열 —
             # 프론트가 기존 필드 조합으로 카드를 즉석 합성한다(match.js의 buildStoryCards).
             "story_cards": json.loads(cards_row["cards_json"])["cards"] if cards_row.get("cards_json") else [],
+            # 카드별 용어풀이 (card_number로 story_cards와 연결). 옛날에 생성된 캐시라
+            # term_explanations 자체가 없을 수도 있어 .get으로 기본값을 둔다.
+            "term_explanations": (
+                json.loads(cards_row["cards_json"]).get("term_explanations", [])
+                if cards_row.get("cards_json") else []
+            ),
         })
 
     return articles
