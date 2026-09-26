@@ -6,3 +6,4 @@ uvicorn==0.34.0
 feedparser==6.0.14
 requests==2.32.4
 beautifulsoup4==4.13.4
+google-genai==2.20.0

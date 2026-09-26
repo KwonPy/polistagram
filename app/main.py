@@ -71,3 +71,13 @@ def index_page():
 @app.get("/match.html")
 def match_page():
     return FileResponse("match.html")
+
+
+@app.get("/styles.css")
+def styles_css():
+    return FileResponse("styles.css")
+
+
+@app.get("/match.js")
+def match_js():
+    return FileResponse("match.js")

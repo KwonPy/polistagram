@@ -1,0 +1,430 @@
+/* Pico는 쓰지 않는다: 이 화면은 카드 레이아웃이 핵심이라 태그 기본 스타일보다
+   직접 만든 카드 컴포넌트가 더 잘 맞는다.
+   색 토큰은 index.html의 --pico-primary(#3a6ea5)와 맞춰서 두 화면이 같은 브랜드로
+   보이게 한다 (2026-09-26 카드뉴스 레퍼런스에 맞춰 옐로 포인트를 걷어내고 블루로 통일). */
+:root {
+  --brand: #3a6ea5;
+  --brand-dark: #2c4a68;
+  --ink: #16213e;
+  --muted: #6b7280;
+  --bg-app: #eef4fb;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Noto Sans KR", sans-serif;
+  background: var(--bg-app);
+  color: var(--ink);
+}
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* 브랜드 마크 — index.html 히어로의 필기체 로고 대신, 좁은 화면에서도 쓸 수 있는
+   작은 버전. 이 화면 헤더와 카드뉴스 오버레이 상단에서 재사용해 두 화면을 하나의
+   브랜드로 묶는다. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: inset 0 0 0 3px #ffffff;
+  flex: none;
+}
+.brand-name {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--brand-dark);
+}
+header.app-header {
+  margin-bottom: 1.25rem;
+}
+header.app-header .brand {
+  margin-bottom: 0.35rem;
+}
+header.app-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* 상단 필터 탭. */
+#tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+.tab {
+  flex: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+#feed {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 카드 공통 골격 */
+.card {
+  border-radius: 24px;
+  padding: 1.25rem;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+  font-family: inherit;
+}
+/* personal_relevance = direct -> 블루 톤 강조 카드 (지금 바로 신청 가능한 것을 부각) */
+.card.direct {
+  background: #eaf2fa;
+  color: var(--ink);
+  border: 2px solid var(--brand);
+}
+.card.direct .card-title {
+  color: var(--brand-dark);
+}
+/* personal_relevance = indirect -> 라이트 카드 (참고용, 톤을 낮춤) */
+.card.indirect {
+  background: #f3f0f1;
+  color: var(--ink);
+  border: 2px solid transparent;
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  background: #dce8f7;
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 0.5rem;
+}
+.card.indirect .card-title {
+  color: var(--brand);
+}
+.card-summary {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 0.9rem;
+  opacity: 0.85;
+}
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+#status {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------------
+   카드뉴스(Story View) 오버레이 — 레퍼런스(2026-09-26 전달받은 인스타그램 스토리풍
+   목업)에 맞춰 재설계. 카드마다 배경색을 바꾸는 대신, 전체를 밝은 블루~화이트
+   그라데이션 하나로 통일하고 배지/헤드라인/정보박스 컴포넌트로 카드 성격을 구분한다.
+   ------------------------------------------------------------------- */
+#cardsOverlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #eef4fb 0%, #f7fafd 55%, #ffffff 100%);
+  display: none;
+  flex-direction: column;
+  z-index: 100;
+}
+#cardsOverlay.open {
+  display: flex;
+}
+#cardsTopBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem;
+}
+#cardsTopBar .brand-name {
+  color: var(--ink);
+}
+#cardsTopRight {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+#cardsCounter {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+#cardsClose {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+#cardsDotsBottom {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+}
+#cardsDotsBottom .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(22, 33, 62, 0.18);
+  transition: background 0.2s ease, width 0.2s ease;
+}
+#cardsDotsBottom .dot.active {
+  background: var(--brand);
+  width: 16px;
+}
+#cardsTrack {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* 스크롤바를 숨긴다 — 스와이프 동작만 남기고 시각적으로는 안 보이게 */
+  scrollbar-width: none;
+}
+#cardsTrack::-webkit-scrollbar {
+  display: none;
+}
+.story-card {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding: 4.75rem 1.5rem 3.5rem;
+}
+.story-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+  background: #dce8f7;
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.story-badge svg { width: 14px; height: 14px; }
+.story-headline {
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1.38;
+  color: var(--ink);
+  margin: 0 0 0.6rem;
+}
+.story-headline .hl { color: var(--brand); }
+.story-lead {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 1.25rem;
+}
+
+/* 아이콘 히어로 — 사람 일러스트 대신 쓰는 장식 원. 정책 주제(topics)에 따라
+   아이콘만 바뀌는 가변 요소다 (고정 디자인 시스템 + 가변 시각 콘텐츠). */
+.icon-hero {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eaf2fb, #dce8f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  margin-bottom: 1.25rem;
+}
+.icon-hero svg { width: 42px; height: 42px; }
+
+/* 칩 — hook 카드에서 겹치는 관심사/조건을 짧게 보여준다. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.chip svg { width: 13px; height: 13px; color: var(--brand); }
+
+/* 정보 박스 — 흰 카드 위에 아이콘+라벨+값 형태의 줄을 쌓는 재사용 컴포넌트.
+   impact(대상/혜택)와 schedule(일정/신청방법)이 같은 컴포넌트를 함께 쓴다. */
+.info-box {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 0.4rem 1.1rem;
+  box-shadow: 0 6px 20px rgba(15, 35, 60, 0.06);
+  margin-top: 0.5rem;
+}
+.info-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 0;
+}
+.info-row + .info-row {
+  border-top: 1px solid #f1f3f5;
+}
+.info-row .info-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eaf2fb;
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.info-row .info-icon svg { width: 18px; height: 18px; }
+.info-row .info-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 0 0 0.2rem;
+  color: var(--ink);
+}
+.info-row .info-value {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 체크리스트 박스 — hook 카드의 "이런 점이 관련 있어요". */
+.checklist-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 800;
+  font-size: 0.92rem;
+  margin: 0 0 0.7rem;
+  color: var(--ink);
+}
+.checklist-title svg { width: 16px; height: 16px; color: #eab308; }
+.checklist {
+  margin: 0;
+  padding: 0 0 0.5rem;
+  list-style: none;
+}
+.checklist li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.87rem;
+  color: var(--ink);
+  padding: 0.3rem 0;
+}
+.checklist li svg { width: 15px; height: 15px; color: #22c55e; flex: none; margin-top: 0.1rem; }
+
+/* 요약 박스(intro) — 초록 톤으로 다른 정보 박스와 구분한다. */
+.summary-box {
+  background: #eafaf0;
+  border-radius: 20px;
+  padding: 1rem 1.1rem;
+  margin-top: 0.25rem;
+}
+.summary-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #15803d;
+  margin: 0 0 0.5rem;
+}
+.summary-label svg { width: 14px; height: 14px; }
+.summary-text {
+  font-weight: 800;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+}
+
+.cta-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: var(--brand);
+  color: #ffffff;
+  text-decoration: none;
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  margin-top: 1.5rem;
+}
+.cta-button svg { width: 18px; height: 18px; }
+.source-caption {
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
