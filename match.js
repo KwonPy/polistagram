@@ -173,12 +173,31 @@ function highlightKeyword(text, keyword) {
   return text.replace(keyword, `<span class="hl">${keyword}</span>`);
 }
 
+// personalized_signal이 코드 폴백("나에게 관련 있어요")으로 뜰 때, 왜 관련 있는지
+// 실제 근거를 한 줄로 만든다. buildStoryCards의 hook 카드가 만드는 근거 문장과 같은
+// 재료(관심사 겹침/지역/직업군)를 쓴다 — "관련 있다"고만 하고 이유를 안 보여준다는
+// 피드백(2026-09-28)에 따라, 목록 카드에서도 이유가 바로 보이게 한다.
+function buildRelevanceReason(match, profile, overlap) {
+  if (!profile) return null;
+  if (overlap.length > 0) {
+    return `관심 분야로 등록하신 '${overlap.join(", ")}'${josaWaGwa(overlap[overlap.length - 1])} 관련 있어요`;
+  }
+  const regionHit = Boolean(match.region_scope && profile.region && match.region_scope.includes(profile.region));
+  if (regionHit) return `${profile.region} 지역에 해당하는 정책이에요`;
+  const occupationHit = Boolean(
+    match.audience_groups && profile.occupation_type && match.audience_groups.includes(profile.occupation_type)
+  );
+  if (occupationHit) return `'${profile.occupation_type}'인 분들을 위한 정책이에요`;
+  return null;
+}
+
 // app/feed_card_generator.py가 만든 티저 문구(Gemini 생성)가 있으면 그걸 쓰고, 없으면
 // (아직 생성 전인 새 기사) 기존 2/3계층 필드로 대체 표시한다. personal_relevance 값
 // 자체는 노출하지 않는다.
 function buildFeedCard(match, profile) {
   const overlap = profile ? match.topics.filter((t) => profile.interests?.includes(t)) : [];
   const isDirect = match.personal_relevance === "direct";
+  const isFallbackSignal = isDirect && overlap.length > 0 && !match.feed_personalized_signal;
 
   const personalizedSignal =
     match.feed_personalized_signal || (isDirect && overlap.length > 0 ? "나에게 관련 있어요" : null);
@@ -189,7 +208,13 @@ function buildFeedCard(match, profile) {
 
   // summary_easy는 3~5문장짜리 긴 설명이라 폴백으로 쓰면 목록 카드가 줄글처럼 보인다.
   // one_line_summary(2계층에서 이미 한 문장으로 요약된 필드)로 폴백해야 짧게 유지된다.
-  const personalizedLine = match.feed_personalized_line || match.one_line_summary || "";
+  // personalizedSignal이 코드 폴백일 때는(LLM이 문구를 안 만든 경우) one_line_summary
+  // 대신 실제 매칭 근거(buildRelevanceReason)를 먼저 써서 "왜 관련 있는지"가 보이게 한다.
+  const personalizedLine =
+    match.feed_personalized_line ||
+    (isFallbackSignal ? buildRelevanceReason(match, profile, overlap) : null) ||
+    match.one_line_summary ||
+    "";
 
   const iconSlug = TOPIC_ICON_SLUG[match.topics[0]] || "etc";
   // 카드를 열면 스토리 카드가 몇 장인지 미리 보여준다 — 실제 카드가 아직 없으면(신규
@@ -287,39 +312,51 @@ function buildIntroBody(match) {
   };
 }
 
-// change 카드: "기존 -> 변경" Before/After 비교 박스. before는 doc_type별 일반적인
-// 전환 문구(구체적 수치·조건을 지어내지 않는 범용 표현)이고, after는 실제 원문 요약이다.
-const BEFORE_LABEL_BY_DOC_TYPE = {
-  support_program: "이전에는 없던 지원이에요",
-  rule_change: "지금까지 적용되던 제도예요",
-  plan: "아직 계획 단계였어요",
-  info: "이런 소식이 알려지기 전이에요",
-  admin: "기존 행정 절차가 적용되고 있었어요",
-};
+// change 카드: 원문에 실제 "기존에는 ~였으나" 같은 대조 표현이 있을 때만(card.beforeText/
+// afterText, app/card_generator.py가 판단) Before/After 비교박스를 보여준다. 그런 대조가
+// 없으면(예: 완전히 새로 생기는 지원사업) 없는 "기존"을 지어내지 않고, 변화 내용을 그냥
+// 나열한다 (2026-09-28, 사용자 피드백 — 이전엔 doc_type별 뻔한 채움 문구로 모든 기사에
+// 강제로 비교박스를 씌웠었다).
 function buildChangeDiagram(match, card) {
-  const before = BEFORE_LABEL_BY_DOC_TYPE[match.doc_type] || "기존에는 달랐어요";
-  // 카드 자신의 문구(card.changeText = LLM이 쓴 copy)가 있으면 그걸 쓴다 — 한 기사에
-  // change 타입 카드가 여러 장(예: key_change가 2장)이어도 서로 다른 "변경" 내용이
-  // 보이게 하기 위함. 카드 없이 합성한 경로(buildStoryCards)는 match.one_line_summary로
-  // 대체한다. card.lead가 아니라 card.changeText를 읽는 이유: lead는 이 카드가 화면에
-  // 이미 한 번 보여준 값이라 (또는 중복을 막으려고 비워둔 값이라), 여기서 그대로
-  // 다시 쓰면 같은 문장이 두 번 보이거나 꼬인다.
-  const after = card?.changeText || match.one_line_summary || "";
   const bars = (heights) => heights.map((h) => `<span style="height:${h}px"></span>`).join("");
 
+  if (card?.beforeText && card?.afterText) {
+    return `
+      <div class="compare-stack">
+        <div class="compare-box before">
+          <span class="compare-tag before">기존</span>
+          <p>${card.beforeText}</p>
+          <div class="compare-bars">${bars([8, 12, 10])}</div>
+        </div>
+        <span class="compare-arrow">${iconMarkup("arrowDown", 20)}</span>
+        <div class="compare-box after">
+          <span class="compare-tag after">변경</span>
+          <p>${card.afterText}</p>
+          <div class="compare-bars">${bars([14, 20, 26])}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 대조 표현이 없는 경우: card.changeText(LLM이 쓴 copy, 아직 태그 없는 원문) 또는
+  // one_line_summary를 항목으로 쪼갤 수 있으면 체크리스트로, 아니면 요약 박스
+  // 하나로 보여준다. **먼저 쪼갠 뒤에** 하이라이트를 입힌다 — 반대로 하면(먼저
+  // <span> 태그를 씌운 뒤 쪼개면) 태그 안의 "/"에서 잘려 태그가 깨진다.
+  const text = card?.changeText || match.one_line_summary || "";
+  const items = splitToItems(text, 4);
+  if (items.length > 0) {
+    const rows = items
+      .map(
+        (t) =>
+          `<div class="item-row"><span class="item-icon">${iconMarkup("check", 16)}</span><span>${wrapHighlight(t, card?.changeHighlight)}</span></div>`
+      )
+      .join("");
+    return `<div class="item-list">${rows}</div>`;
+  }
   return `
-    <div class="compare-stack">
-      <div class="compare-box before">
-        <span class="compare-tag before">기존</span>
-        <p>${before}</p>
-        <div class="compare-bars">${bars([8, 12, 10])}</div>
-      </div>
-      <span class="compare-arrow">${iconMarkup("arrowDown", 20)}</span>
-      <div class="compare-box after">
-        <span class="compare-tag after">변경</span>
-        <p>${after}</p>
-        <div class="compare-bars">${bars([14, 20, 26])}</div>
-      </div>
+    <div class="summary-box">
+      <p class="summary-label">${iconMarkup("refreshCw", 14)}달라지는 점</p>
+      <p class="summary-text">${wrapHighlight(text, card?.changeHighlight) || "아직 상세 내용이 준비되지 않았어요."}</p>
     </div>
   `;
 }
@@ -598,10 +635,18 @@ function buildCardsFromReal(match) {
       bodyHtml = `<div class="info-panel">${lead}</div>`;
     }
 
-    // change 타입은 뒤에서 applyDiagrams가 비교박스(Before/After) 안에 이 카드의 문구를
-    // 넣는다 — changeText로 따로 들고 있다가 그때 쓴다. 화면에 쓰이는 lead 자체를
-    // 그대로 넘기면, 비교박스가 나중에 값을 읽을 카드 객체가 이미 변형된 뒤라 꼬인다.
-    const changeText = cardMap.cssType === "change" ? lead : undefined;
+    // change 타입은 뒤에서 applyDiagrams가 이 카드의 문구를 읽어 비교박스 또는 나열형
+    // 리스트를 만든다 — changeText/changeHighlight/beforeText/afterText로 따로 들고
+    // 있다가 그때 쓴다. **lead(이미 wrapHighlight로 <span> 태그가 섞인 HTML 문자열)를
+    // 넘기면 안 된다** — buildChangeDiagram이 나열형일 때 텍스트를 쉼표 등으로 다시
+    // 쪼개는데, HTML 태그 안의 "/"(`</span>`)에서 잘려 태그가 깨진다(2026-09-28에
+    // 실제로 발견한 버그). 그래서 원문 그대로인 item.copy/item.highlight를 넘기고,
+    // 하이라이트는 쪼갠 뒤에 조각별로 입힌다. before/after는 원문에 실제 대조 표현이
+    // 있을 때만 app/card_generator.py가 채우고, 없으면 둘 다 null이다.
+    const changeText = cardMap.cssType === "change" ? item.copy : undefined;
+    const changeHighlight = cardMap.cssType === "change" ? item.highlight : undefined;
+    const beforeText = cardMap.cssType === "change" ? item.before : undefined;
+    const afterText = cardMap.cssType === "change" ? item.after : undefined;
 
     return {
       type: cardMap.cssType,
@@ -614,6 +659,9 @@ function buildCardsFromReal(match) {
       // 똑같은 문장이 두 번 보이던 문제를 사용자가 지적해서 고쳤다).
       lead: ["schedule", "change"].includes(cardMap.cssType) ? "" : lead,
       changeText,
+      changeHighlight,
+      beforeText,
+      afterText,
       bodyHtml,
       terms,
     };
