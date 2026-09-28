@@ -15,8 +15,22 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from app.card_generator import process_cards
+from app.detail_collector import process_details
+from app.feed_card_generator import process_feed_cards
 from app.matching import match_articles
 from app.rss_collector import collect_new_articles
+from app.triage_collector import triage_new_articles
+
+# 한 번 실행에 단계별로 처리할 최대 건수. 남은 건 다음 날 실행이 이어서 처리한다.
+# ponytail: 고정 상한, 글이 매일 5건 넘게 쌓이면 늘리거나 실행 횟수를 늘릴 것.
+PIPELINE_LIMIT = 5
+PIPELINE_STEPS = [
+    ("triage", triage_new_articles),
+    ("detail", process_details),
+    ("cards", process_cards),
+    ("feed_card", process_feed_cards),
+]
 
 app = FastAPI(title="Polistagram API")
 
@@ -57,7 +71,16 @@ def collect(authorization: str | None = Header(default=None)):
     secret = os.environ.get("CRON_SECRET")
     if secret and authorization != f"Bearer {secret}":
         raise HTTPException(status_code=401, detail="Unauthorized")
-    return collect_new_articles()
+
+    report = {"raw": collect_new_articles()}
+    for name, step in PIPELINE_STEPS:
+        # 한 단계가 실패해도 이미 저장된 결과는 남고, 다음 단계는 계속 시도한다.
+        try:
+            result = step(limit=PIPELINE_LIMIT)
+            report[name] = {"checked": result["checked"], "added": result["added"]}
+        except Exception as error:
+            report[name] = {"error": repr(error)}
+    return report
 
 
 # 아래 두 라우트는 로컬에서 `uvicorn app.main:app`만으로 프론트+API를 한 주소에서

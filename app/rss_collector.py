@@ -21,7 +21,8 @@ RSS_URL = "https://www.fsc.go.kr/about/fsc_bbs_rss/?fid=0111"
 
 def fetch_feed_entries() -> list:
     """RSS를 가져와 feedparser로 파싱한다. 최신 항목 10개가 들어있다."""
-    response = requests.get(RSS_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+    # 금융위 서버는 첫 응답까지 20~30초 걸리는 날이 있다 (2026-09-28 실측).
+    response = requests.get(RSS_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
     response.raise_for_status()
     return feedparser.parse(response.content).entries
 

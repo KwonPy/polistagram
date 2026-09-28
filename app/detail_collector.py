@@ -14,7 +14,6 @@ docs/schema.md 4절(3계층 필드, 처리 게이트)을 그대로 따른다.
 
 import json
 import os
-import re
 import time
 
 from google import genai
@@ -140,30 +139,17 @@ def classify_detail_indirect(client: genai.Client, title: str, body_text: str) -
     return _generate_with_retry(client, prompt, SUMMARY_ONLY_SCHEMA)
 
 
-def _normalize(text: str) -> str:
-    """공백/줄바꿈 차이를 무시하고 비교하려고, 공백을 전부 지운 문자열을 만든다."""
-    return re.sub(r"\s+", "", text)
+def is_valid_direct(result: dict) -> bool:
+    """direct 응답은 필수 필드만 있으면 통과한다.
 
-
-def evidence_supported(evidence_quotes: list, body_text: str) -> bool:
-    """evidence_quotes가 실제로 body_text 안에 있는지 대조한다 (환각 방지 이중 검증).
-
-    quote 안의 줄바꿈/띄어쓰기가 원문과 완전히 같지 않을 수 있어서, 둘 다 공백을 지우고
-    부분 문자열로 비교한다. 하나라도 원문에서 못 찾으면 지어낸 근거로 보고 False를 준다.
+    예전엔 evidence_quotes가 원문에 글자 그대로 있는지도 대조했지만, Gemini가 조금만
+    바꿔 인용해도 멀쩡한 기사가 통째로 탈락해서 뺐다 (2026-09-28). 사용자는 카드에서
+    원문 링크로 직접 확인할 수 있다.
     """
-    if not evidence_quotes:
-        return False
-    normalized_body = _normalize(body_text)
-    return all(_normalize(quote) in normalized_body for quote in evidence_quotes)
-
-
-def is_valid_direct(result: dict, body_text: str) -> bool:
-    """direct 응답은 필수 필드가 다 있고, evidence_quotes가 원문에 실제로 있어야 통과한다."""
     return (
         bool(result.get("summary_easy"))
         and bool(result.get("target"))
         and isinstance(result.get("key_dates"), list)
-        and evidence_supported(result.get("evidence_quotes", []), body_text)
     )
 
 
@@ -220,11 +206,11 @@ def process_details(limit: int | None = None) -> dict:
             skipped.append({"article_id": article_id, "reason": "articles_raw에 본문 없음"})
         elif row["personal_relevance"] == "direct":
             result = classify_detail_direct(client, title, body_text)
-            if is_valid_direct(result, body_text):
+            if is_valid_direct(result):
                 detail_ws.append_row(build_detail_row(article_id, result))
                 added += 1
             else:
-                skipped.append({"article_id": article_id, "reason": "필수 필드 누락 또는 evidence 대조 실패", "raw": result})
+                skipped.append({"article_id": article_id, "reason": "필수 필드 누락", "raw": result})
         else:  # indirect
             result = classify_detail_indirect(client, title, body_text)
             if is_valid_indirect(result):

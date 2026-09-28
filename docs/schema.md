@@ -206,7 +206,7 @@ https://www.fsc.go.kr/no010101/87646
 | `key_dates` | string[] | **원문 표현 그대로** |
 | `deadline` | `YYYY-MM-DD` \| null | **명확한 마감일이 있을 때만** |
 | `region_scope` | string[] \| null | 지역 한정 정책만. 전국이면 null |
-| `evidence_quotes` | string[] | 근거 문장 2~3개 |
+| `evidence_quotes` | string[] | 근거 문장 2~3개. 저장만 하고 원문과 글자 대조는 하지 않는다 (아래 참고) |
 
 ### `key_dates`와 `deadline`을 나눈 이유
 
@@ -245,6 +245,13 @@ if article["deadline"] and article["deadline"] < TODAY:
 
 필드를 만들면 AI는 그 칸을 채우려 한다. **근거 없는 필드는 편의 기능이 아니라 환각 발생 장치다.**
 그래서 "없으면 반드시 null"을 프롬프트에 명시한다.
+
+### `evidence_quotes`를 원문과 대조하지 않는 이유 (2026-09-28)
+
+처음엔 인용 문장이 원문에 글자 그대로(공백 무시) 있어야 3계층 저장을 허용했다.
+하지만 Gemini가 조금만 바꿔 인용해도 멀쩡한 기사(87726, 87789)가 통째로 탈락했다.
+사용자는 카드에서 원문 링크로 직접 확인할 수 있으므로, 대조는 빼고 필수 필드
+(`summary_easy`, `target`, `key_dates`) 존재 여부만 검사한다.
 
 ### 기존 초안에서 뺀 필드
 
