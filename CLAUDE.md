@@ -231,7 +231,7 @@ articles_detail    3계층  상세        긴 LLM 1회, 일부만
 
 ## 9. 4주 범위 관리
 
-우선순위 (2026-09-26 기준):
+우선순위 (2026-09-30 기준):
 
 1. RSS 수집 — **완료**. 금융위 RSS를 매일 자동 수집, Vercel Cron으로 배포됨 ([작업일지 008](docs/worklogs/008-rss-collection-and-triage.md))
 2. Google Sheets 적재 — **완료**. 목업 데이터는 삭제하고 실제 RSS+Gemini 결과만 적재 중 (008)
@@ -240,7 +240,9 @@ articles_detail    3계층  상세        긴 LLM 1회, 일부만
 5. 쉬운 설명 — **완료**. `summary_easy` 필드 (009)
 6. 행동 단계 — **부분 완료**. 신청방법/일정은 있으나("action_timing" 카드) 여러 단계로 쪼갠 체크리스트 형태는 아님
 7. 변경 감지 — 미착수
-8. 최소 UI(카드 피드) — **완료**. 프로필 입력 폼(004) + My Feed 목록 + Story View 카드뉴스(스와이프/탭) (009, 010)
+8. 최소 UI(카드 피드) — **완료**. 프로필 입력 폼(004) + My Feed + Story View 카드뉴스(스와이프/탭) (009, 010).
+   My Feed는 2026-09-30에 매거진형에서 **인스타그램식 단일 컬럼 포스트 피드**(작성자 줄 → 4:3 표지 → 캡션)로
+   교체했다. 자세한 방향은 [docs/design-brief.md](docs/design-brief.md) 참고.
 
 ~~이메일 알림~~ — **제외됨** (2026-09-06). 알림 서비스는 만들지 않기로 했다. 이메일은 사용자
 식별자로만 남는다 (7절 참고).
@@ -269,11 +271,13 @@ Google Sheets 세부 스키마, 사용자 프로필 세부 항목, 정책 JSON �
 빌드 도구, 프레임워크 없이 **`index.html` 단일 파일**로 화면을 만든다. 자세한 구현과 이유는
 [작업일지 004](docs/worklogs/004-landing-page.md) 참고.
 
-* 스타일: **Pico.css** (CDN). 클래스를 거의 안 붙여도 기본 태그가 정리돼 보이고, 반응형도 기본 제공된다.
-* 데이터: 백엔드 API 없이, **Google Sheets를 CSV로 export한 주소를 PapaParse로 직접 읽는다.**
-  이 방식을 쓰려면 시트가 "링크가 있는 모든 사용자 보기"로 공유돼 있어야 한다 —
-  민감하지 않은 데이터에만 이 방식을 쓴다.
-* 저장: 백엔드가 생기기 전까지 사용자 프로필은 `localStorage`에 저장한다.
+* 화면: `index.html`(프로필 입력)과 `match.html` + `match.js`(My Feed, Story View) 두 페이지가 `styles.css`를
+  공유한다. 폰트는 Pretendard(CDN)를 쓴다.
+* 스타일: 직접 작성한 `styles.css`. Pico.css는 2026-09-26에 제거했다.
+* 데이터: 프런트는 FastAPI의 **`POST /api/match`** 로 매칭 결과를 받는다. FastAPI가 정적 파일
+  (`index.html`, `match.html`, `styles.css`, `match.js`, `assets/`)도 함께 내준다.
+  Sheets CSV를 프런트가 직접 읽던 초기 방식(PapaParse)은 더 이상 쓰지 않는다.
+* 저장: 사용자 프로필은 서버가 아니라 브라우저 `localStorage`(`polistagram_profile`)에만 저장한다.
+* 로컬 실행: 프로젝트 루트에서 `python -m uvicorn app.main:app --port 8000 --reload` 후 `http://localhost:8000`.
 
-이 방침은 정식 백엔드(FastAPI)가 생기기 전까지의 **임시 구조**다. 화면이 늘어나거나
-백엔드 API가 생기면 이 절을 다시 논의한다.
+프레임워크·빌드 도구를 도입하지 않는다는 원칙은 그대로다. 화면이 더 늘어나면 이 절을 다시 논의한다.
