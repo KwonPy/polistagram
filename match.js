@@ -60,6 +60,7 @@ function renderFeed() {
       <div class="post-head">
         <img class="brand-mark" src="assets/icons/brand.png" alt="" />
         <div class="post-author">polistagram</div>
+        <span class="post-count">1/${cardCount}</span>
       </div>
       <div class="post-cover">
         ${signalHtml}
@@ -69,7 +70,6 @@ function renderFeed() {
       <div class="post-caption">
         <p>${personalizedLine}</p>
         <div class="card-tags">${tagsHtml}</div>
-        <span class="post-more">카드뉴스 ${cardCount}장 보기</span>
       </div>
     `;
     feedEl.appendChild(post);

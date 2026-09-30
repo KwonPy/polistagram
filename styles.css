@@ -194,7 +194,7 @@ header.app-header p {
   font-size: 0.92rem;
   line-height: 1.55;
 }
-.post-more {
+.post-count {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
