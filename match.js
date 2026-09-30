@@ -27,8 +27,8 @@ function renderTabs() {
   }
 }
 
-// 첫 카드는 매거진 커버처럼 크게, 나머지는 아이콘+텍스트를 가로로 배치한 컴팩트한
-// 행으로 보여준다 (2026-09-27, 4색 배경 대신 콘텐츠 자체로 카드를 구별하는 방향).
+// 인스타그램식 포스트 피드 (2026-09-30): 작성자 줄 → 정사각형 표지 → 캡션.
+// 포스트를 누르면 카드뉴스(Story View)가 열린다.
 function renderFeed() {
   const filtered =
     activeTopic === "전체"
@@ -36,48 +36,43 @@ function renderFeed() {
       : allMatches.filter((m) => m.topics.includes(activeTopic));
 
   feedEl.innerHTML = "";
-  filtered.forEach((match, index) => {
+  filtered.forEach((match) => {
     const { personalizedSignal, title, personalizedLine, tags, iconSlug, cardCount } = buildFeedCard(
       match,
       currentProfile
     );
-    const isCover = index === 0;
 
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "card " + (isCover ? "card--cover" : "card--compact");
-    card.addEventListener("click", () => openCards(match));
+    const post = document.createElement("article");
+    post.className = "post";
+    post.tabIndex = 0;
+    post.setAttribute("role", "button");
+    post.addEventListener("click", () => openCards(match));
+    post.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") openCards(match);
+    });
 
     const signalHtml = personalizedSignal
       ? `<span class="card-pill">${iconMarkup("sparkle", 13)}${personalizedSignal}</span>`
       : "";
-    const tagsHtml = `<div class="card-tags">${tags.map((t) => `<span class="card-tag">#${t}</span>`).join("")}</div>`;
-    // 예전엔 "···"와 화살표 아이콘이 있었는데 둘 다 눌러도 아무 일도 없는 장식이었다.
-    // 대신 실제 정보(스토리 카드가 몇 장인지)를 보여준다.
-    const countHtml = `<span class="card-count">${cardCount}장</span>`;
+    const tagsHtml = tags.map((t) => `<span class="card-tag">#${t}</span>`).join("");
 
-    card.innerHTML = isCover
-      ? `
-        <div class="card-top">
-          <div class="brand"><span class="brand-mark"></span><span class="brand-name">polistagram</span></div>
-          ${countHtml}
-        </div>
+    post.innerHTML = `
+      <div class="post-head">
+        <img class="brand-mark" src="assets/icons/brand.png" alt="" />
+        <div class="post-author">polistagram</div>
+      </div>
+      <div class="post-cover">
         ${signalHtml}
-        <p class="card-title">${title}</p>
-        <p class="card-line">${personalizedLine}</p>
-        <div class="card-icon">${phosphorIcon(iconSlug, 64)}</div>
-        ${tagsHtml}
-      `
-      : `
-        <div class="card-thumb">${phosphorIcon(iconSlug, 30)}</div>
-        <div class="card-compact-body">
-          ${signalHtml}
-          <p class="card-title">${title}</p>
-          <p class="card-line">${personalizedLine}</p>
-          <div class="card-compact-foot">${tagsHtml}${countHtml}</div>
-        </div>
-      `;
-    feedEl.appendChild(card);
+        <div class="post-icon">${phosphorIcon(iconSlug, 56)}</div>
+        <p class="post-title">${title}</p>
+      </div>
+      <div class="post-caption">
+        <p>${personalizedLine}</p>
+        <div class="card-tags">${tagsHtml}</div>
+        <span class="post-more">카드뉴스 ${cardCount}장 보기</span>
+      </div>
+    `;
+    feedEl.appendChild(post);
   });
 }
 
@@ -295,7 +290,7 @@ function buildIntroBody(match) {
         `
       )
       .join("");
-    return { lead: firstSentence(match.summary_easy), bodyHtml: `<div class="item-list">${rows}</div>` };
+    return { lead: firstSentence(match.summary_easy || match.one_line_summary), bodyHtml: `<div class="item-list">${rows}</div>` };
   }
 
   // summary_easy 전체를 아래 박스에 그대로 보여줄 거라, 위쪽 리드 문구에 첫 문장을
@@ -306,7 +301,7 @@ function buildIntroBody(match) {
     bodyHtml: `
       <div class="summary-box">
         <p class="summary-label">${iconMarkup("document", 14)}한 줄 요약</p>
-        <p class="summary-text">${match.summary_easy || "아직 쉬운 설명이 준비되지 않았어요."}</p>
+        <p class="summary-text">${match.summary_easy || match.one_line_summary || "아직 쉬운 설명이 준비되지 않았어요."}</p>
       </div>
     `,
   };
