@@ -171,6 +171,11 @@ def triage_new_articles(limit: int | None = None) -> dict:
         if i < len(targets) - 1:
             time.sleep(CALL_INTERVAL_SECONDS)
 
+    if added:
+        # article_id는 기사 URL 번호라 클수록 최신이다. 매번 append로 쌓이므로
+        # 실행 끝에 한 번만 정렬해서 시트가 항상 최신순을 유지하게 한다.
+        triage_ws.sort((1, "des"), range=f"A2:Z{triage_ws.row_count}")
+
     return {"checked": len(targets), "added": added, "skipped": skipped}
 
 

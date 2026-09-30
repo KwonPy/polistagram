@@ -22,9 +22,16 @@ RSS_URL = "https://www.fsc.go.kr/about/fsc_bbs_rss/?fid=0111"
 def fetch_feed_entries() -> list:
     """RSS를 가져와 feedparser로 파싱한다. 최신 항목 10개가 들어있다."""
     # 금융위 서버는 첫 응답까지 20~30초 걸리는 날이 있다 (2026-09-28 실측).
-    response = requests.get(RSS_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
-    response.raise_for_status()
-    return feedparser.parse(response.content).entries
+    # 게다가 가끔 HTTP 200과 함께 <rss></rss>처럼 빈 채널을 돌려준다 (2026-09-30 실측,
+    # 5번 중 4번 빈 응답). raise_for_status()는 이 경우를 못 잡으므로 entries가
+    # 비어 있으면 재시도한다.
+    for attempt in range(3):
+        response = requests.get(RSS_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
+        response.raise_for_status()
+        entries = feedparser.parse(response.content).entries
+        if entries:
+            return entries
+    return entries
 
 
 def collect_new_articles() -> dict:
@@ -52,7 +59,9 @@ def collect_new_articles() -> dict:
         )
 
     if new_rows:
-        worksheet.append_rows(new_rows)
+        # append_rows 대신 헤더 바로 아래(2행)에 끼워 넣는다 — RSS 항목은
+        # 최신순으로 오므로, 시트도 항상 최신 글이 위에 오도록 유지한다.
+        worksheet.insert_rows(new_rows, row=2)
 
     return {"checked": len(entries), "added": len(new_rows)}
 
